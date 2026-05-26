@@ -67,8 +67,8 @@ export class SettingsTab extends PluginSettingTab {
 		this.renderSupportSection(containerEl);
 	}
 
-	private renderSupportSection(containerEl: HTMLElement): void {
-		this.addHeader(containerEl, "heart", "Support the project");
+	private renderSupportSection(parent: HTMLElement): void {
+		const containerEl = this.addSection(parent, "heart", "Support the project");
 
 		const supportDiv = containerEl.createDiv({ cls: "ical-pro-support" });
 		supportDiv.createEl("p", {
@@ -172,8 +172,8 @@ export class SettingsTab extends PluginSettingTab {
 		});
 	}
 
-	private renderTaskSourceSettings(containerEl: HTMLElement): void {
-		this.addHeader(containerEl, "search", "Scope and discovery");
+	private renderTaskSourceSettings(parent: HTMLElement): void {
+		const containerEl = this.addSection(parent, "search", "Scope and discovery");
 
 		containerEl.createEl("p", {
 			text: "Bind one source path to one category. Use multiple rules when you want different folders exported as different calendar categories.",
@@ -230,8 +230,8 @@ export class SettingsTab extends PluginSettingTab {
 			);
 	}
 
-	private renderDateSettings(containerEl: HTMLElement): void {
-		this.addHeader(containerEl, "calendar-days", "Scheduling and alarms");
+	private renderDateSettings(parent: HTMLElement): void {
+		const containerEl = this.addSection(parent, "calendar-days", "Scheduling and alarms");
 
 		new Setting(containerEl)
 			.setName("Time-block logic (day planner)")
@@ -292,8 +292,8 @@ export class SettingsTab extends PluginSettingTab {
 			);
 	}
 
-	private renderFilteringSettings(containerEl: HTMLElement): void {
-		this.addHeader(containerEl, "filter", "Content and filters");
+	private renderFilteringSettings(parent: HTMLElement): void {
+		const containerEl = this.addSection(parent, "filter", "Content and filters");
 
 		new Setting(containerEl)
 			.setName("Respect tasks global filter")
@@ -406,8 +406,8 @@ export class SettingsTab extends PluginSettingTab {
 			);
 	}
 
-	private renderDestinationSettings(containerEl: HTMLElement): void {
-		this.addHeader(containerEl, "cloud", "Sync and cloud connectivity");
+	private renderDestinationSettings(parent: HTMLElement): void {
+		const containerEl = this.addSection(parent, "cloud", "Sync and cloud connectivity");
 
 		new Setting(containerEl)
 			.setName("Calendar filename")
@@ -514,8 +514,8 @@ export class SettingsTab extends PluginSettingTab {
 			);
 	}
 
-	private renderAdvancedSettings(containerEl: HTMLElement): void {
-		this.addHeader(containerEl, "sliders", "Advanced and diagnostics");
+	private renderAdvancedSettings(parent: HTMLElement): void {
+		const containerEl = this.addSection(parent, "sliders", "Advanced and diagnostics", true);
 
 		new Setting(containerEl)
 			.setName("Summary formatting")
@@ -582,11 +582,16 @@ export class SettingsTab extends PluginSettingTab {
 		});
 	}
 
-	private addHeader(el: HTMLElement, icon: string, text: string): void {
-		const header = el.createDiv({ cls: "ical-pro-section-header" });
+	private addSection(el: HTMLElement, icon: string, text: string, collapsed = false): HTMLElement {
+		const group = el.createDiv({ cls: `ical-pro-section-group${collapsed ? " is-collapsed" : ""}` });
+		const header = group.createDiv({ cls: "ical-pro-section-header" });
 		const iconEl = header.createDiv({ cls: "ical-pro-section-icon" });
 		setIcon(iconEl, icon);
 		new Setting(header).setHeading().setName(text);
+		const indicator = header.createSpan({ cls: "collapse-indicator" });
+		setIcon(indicator, "chevron-down");
+		header.onClickEvent(() => group.classList.toggle("is-collapsed"));
+		return group;
 	}
 
 	private updateUrlDisplay(): void {

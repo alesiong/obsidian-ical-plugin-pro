@@ -1812,8 +1812,8 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     this.renderAdvancedSettings(containerEl);
     this.renderSupportSection(containerEl);
   }
-  renderSupportSection(containerEl) {
-    this.addHeader(containerEl, "heart", "Support the project");
+  renderSupportSection(parent) {
+    const containerEl = this.addSection(parent, "heart", "Support the project");
     const supportDiv = containerEl.createDiv({ cls: "ical-pro-support" });
     supportDiv.createEl("p", {
       text: "If this plugin helps you stay organized, consider supporting its development.",
@@ -1910,8 +1910,8 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
       new import_obsidian4.Notice("Diagnostics copied.");
     });
   }
-  renderTaskSourceSettings(containerEl) {
-    this.addHeader(containerEl, "search", "Scope and discovery");
+  renderTaskSourceSettings(parent) {
+    const containerEl = this.addSection(parent, "search", "Scope and discovery");
     containerEl.createEl("p", {
       text: "Bind one source path to one category. Use multiple rules when you want different folders exported as different calendar categories.",
       cls: "setting-item-description"
@@ -1955,8 +1955,8 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
       })
     );
   }
-  renderDateSettings(containerEl) {
-    this.addHeader(containerEl, "calendar-days", "Scheduling and alarms");
+  renderDateSettings(parent) {
+    const containerEl = this.addSection(parent, "calendar-days", "Scheduling and alarms");
     new import_obsidian4.Setting(containerEl).setName("Time-block logic (day planner)").setDesc("If enabled, treats daily note headings as dates and task times as event start points.").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.isDayPlannerPluginFormatEnabled).onChange((value) => {
         this.runAsync(() => this.plugin.updateSettings(
@@ -1995,8 +1995,8 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
       })
     );
   }
-  renderFilteringSettings(containerEl) {
-    this.addHeader(containerEl, "filter", "Content and filters");
+  renderFilteringSettings(parent) {
+    const containerEl = this.addSection(parent, "filter", "Content and filters");
     new import_obsidian4.Setting(containerEl).setName("Respect tasks global filter").setDesc("Require these tags for a checkbox to count as a real task.").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.respectGlobalTaskFilter).onChange((value) => {
         this.runAsync(() => this.plugin.updateSettings({ respectGlobalTaskFilter: value }, { rebuildIndex: true }));
@@ -2084,8 +2084,8 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
       })
     );
   }
-  renderDestinationSettings(containerEl) {
-    this.addHeader(containerEl, "cloud", "Sync and cloud connectivity");
+  renderDestinationSettings(parent) {
+    const containerEl = this.addSection(parent, "cloud", "Sync and cloud connectivity");
     new import_obsidian4.Setting(containerEl).setName("Calendar filename").setDesc("Used for both local storage and hosted gist sync, for example calendar.ics.").addText(
       (text) => text.setPlaceholder("Calendar.ics").setValue(this.plugin.settings.filename).onChange((value) => {
         this.scheduleUpdate("filename", async () => {
@@ -2161,8 +2161,8 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
       })
     );
   }
-  renderAdvancedSettings(containerEl) {
-    this.addHeader(containerEl, "sliders", "Advanced and diagnostics");
+  renderAdvancedSettings(parent) {
+    const containerEl = this.addSection(parent, "sliders", "Advanced and diagnostics", true);
     new import_obsidian4.Setting(containerEl).setName("Summary formatting").setDesc("Choose how note links should be rendered in the calendar.").addDropdown((dropdown) => {
       Object.entries(HOW_TO_PARSE_INTERNAL_LINKS).forEach(([value, label]) => {
         dropdown.addOption(value, label);
@@ -2205,11 +2205,16 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
       cls: "setting-item-description"
     });
   }
-  addHeader(el, icon, text) {
-    const header = el.createDiv({ cls: "ical-pro-section-header" });
+  addSection(el, icon, text, collapsed = false) {
+    const group = el.createDiv({ cls: `ical-pro-section-group${collapsed ? " is-collapsed" : ""}` });
+    const header = group.createDiv({ cls: "ical-pro-section-header" });
     const iconEl = header.createDiv({ cls: "ical-pro-section-icon" });
     (0, import_obsidian4.setIcon)(iconEl, icon);
     new import_obsidian4.Setting(header).setHeading().setName(text);
+    const indicator = header.createSpan({ cls: "collapse-indicator" });
+    (0, import_obsidian4.setIcon)(indicator, "chevron-down");
+    header.onClickEvent(() => group.classList.toggle("is-collapsed"));
+    return group;
   }
   updateUrlDisplay() {
     const container = this.containerEl.querySelector(".ical-url-container");

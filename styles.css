@@ -51,6 +51,12 @@
     gap: 20px;
 }
 
+@media (max-width: 600px) {
+    .ical-pro-status-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .ical-pro-status-col {
     display: flex;
     flex-direction: column;
@@ -144,6 +150,42 @@
 .ical-pro-section-header h3 {
     margin: 0;
     font-size: 1.1em;
+}
+
+.ical-pro-source-rules .setting-item,
+.ical-pro-excluded-paths .setting-item {
+    background: var(--background-secondary);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 6px;
+}
+
+.ical-pro-section-group {
+    margin-bottom: 8px;
+}
+
+.ical-pro-section-group.is-collapsed .setting-item:not(:first-child),
+.ical-pro-section-group.is-collapsed p {
+    display: none;
+}
+
+.ical-pro-section-group.is-collapsed .ical-pro-section-header {
+    margin-bottom: 0;
+}
+
+.ical-pro-section-header {
+    cursor: pointer;
+    user-select: none;
+}
+
+.ical-pro-section-header .collapse-indicator {
+    margin-left: auto;
+    transition: transform 0.15s ease;
+    color: var(--text-muted);
+}
+
+.ical-pro-section-group.is-collapsed .collapse-indicator {
+    transform: rotate(-90deg);
 }
 
 .ical-pro-support {
