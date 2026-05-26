@@ -1765,6 +1765,27 @@ var FolderSuggest = class extends import_obsidian3.AbstractInputSuggest {
     this.close();
   }
 };
+var CategorySuggest = class extends import_obsidian3.AbstractInputSuggest {
+  constructor(app, textInputEl, categories) {
+    super(app, textInputEl);
+    __publicField(this, "textInput");
+    __publicField(this, "categories");
+    this.textInput = textInputEl;
+    this.categories = [...new Set(categories.filter((c) => c.trim()))];
+  }
+  getSuggestions(inputStr) {
+    const lower = inputStr.toLowerCase();
+    return this.categories.filter((c) => c.toLowerCase().includes(lower));
+  }
+  renderSuggestion(category, el) {
+    el.setText(category);
+  }
+  selectSuggestion(category) {
+    this.textInput.value = category;
+    this.textInput.trigger("input");
+    this.close();
+  }
+};
 
 // src/UI/SettingsTab.ts
 function isCalendarEntryMode(value) {
@@ -1902,18 +1923,22 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     syncBtn.onClickEvent(() => {
       this.runAsync(async () => {
         syncBtn.disabled = true;
-        syncBtn.setText("Syncing now...");
+        syncBtn.setText("Syncing...");
+        syncBtn.removeClass("ical-sync-success", "ical-sync-fail");
         try {
           await this.plugin.saveCalendar();
-          new import_obsidian4.Notice("Sync successful.");
+          syncBtn.setText("Synced!");
+          syncBtn.addClass("ical-sync-success");
         } catch (e) {
-          new import_obsidian4.Notice(`iCal Pro: sync failed. ${this.plugin.lastSyncMessage}`);
+          syncBtn.setText("Failed");
+          syncBtn.addClass("ical-sync-fail");
         } finally {
-          this.refreshStatusCard();
+          window.setTimeout(() => this.refreshStatusCard(), 1500);
         }
       });
     });
     const diagnosticsBtn = syncCol.createEl("button", { text: "Copy diagnostics", cls: "ical-sync-button" });
+    diagnosticsBtn.title = "Copies settings, readiness, preview, and recent sync results for issue reports.";
     diagnosticsBtn.onClickEvent(() => {
       void navigator.clipboard.writeText(this.plugin.getDiagnosticsBundle());
       new import_obsidian4.Notice("Diagnostics copied.");
@@ -1936,7 +1961,7 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
       });
     }
     new import_obsidian4.Setting(containerEl).setName("Add source path").setDesc("Add another path/category rule.").addButton(
-      (button) => button.setButtonText("Add path").onClick(() => {
+      (button) => button.setIcon("plus").setButtonText("Add path").onClick(() => {
         this.runAsync(async () => {
           await this.plugin.updateSettings(
             {
@@ -1957,7 +1982,7 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
       this.renderExcludedPathSetting(excludedContainer, path, index);
     });
     new import_obsidian4.Setting(containerEl).setName("Add excluded path").setDesc("Add another folder or file to ignore.").addButton(
-      (button) => button.setButtonText("Add exclusion").onClick(() => {
+      (button) => button.setIcon("plus").setButtonText("Add exclusion").onClick(() => {
         this.runAsync(async () => {
           await this.plugin.updateSettings(
             {
@@ -2334,11 +2359,13 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
       text.setPlaceholder("/").setValue(rule.path).onChange((value) => {
         this.scheduleSourceRuleUpdate(index, { path: (0, import_obsidian4.normalizePath)(value) || "/" });
       });
-    }).addText(
-      (text) => text.setPlaceholder("Work").setValue(rule.category).onChange((value) => {
+    }).addText((text) => {
+      const existingCategories = this.plugin.settings.sourceRules.map((r) => r.category);
+      new CategorySuggest(this.app, text.inputEl, existingCategories);
+      text.setPlaceholder("Work").setValue(rule.category).onChange((value) => {
         this.scheduleSourceRuleUpdate(index, { category: value });
-      })
-    ).addExtraButton(
+      });
+    }).addExtraButton(
       (button) => button.setIcon("trash").setTooltip("Remove path rule").onClick(() => {
         this.runAsync(async () => {
           const sourceRules = this.plugin.settings.sourceRules.filter((_, ruleIndex) => ruleIndex !== index);

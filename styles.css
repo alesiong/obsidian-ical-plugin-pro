@@ -13,6 +13,11 @@
     color: var(--text-accent);
 }
 
+.ical-pro-header-title {
+    flex: 1;
+    min-width: 0;
+}
+
 .ical-pro-author {
     font-size: 0.85em;
     opacity: 0.8;
@@ -91,6 +96,12 @@
     word-break: break-all;
 }
 
+.ical-url-placeholder {
+    font-size: 0.85em;
+    color: var(--text-muted);
+    margin: 4px 0 0;
+}
+
 .ical-sync-info {
     padding: 8px;
     background-color: var(--background-primary);
@@ -161,6 +172,16 @@
 .ical-sync-button {
     margin-top: 12px;
     width: 100%;
+}
+
+.ical-sync-success {
+    color: var(--text-success) !important;
+    border-color: var(--text-success) !important;
+}
+
+.ical-sync-fail {
+    color: var(--text-error) !important;
+    border-color: var(--text-error) !important;
 }
 
 /* --- Section Headers --- */

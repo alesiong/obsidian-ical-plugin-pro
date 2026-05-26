@@ -1,6 +1,6 @@
 import { App, Notice, PluginSettingTab, Setting, normalizePath, setIcon } from "obsidian";
 import ObsidianIcalPlugin from "../ObsidianIcalPlugin";
-import { FolderSuggest } from "./FolderSuggest";
+import { FolderSuggest, CategorySuggest } from "./FolderSuggest";
 import {
 	CalendarEntryMode,
 	HOW_TO_PARSE_INTERNAL_LINKS,
@@ -173,18 +173,22 @@ export class SettingsTab extends PluginSettingTab {
 		syncBtn.onClickEvent(() => {
 			this.runAsync(async () => {
 				syncBtn.disabled = true;
-				syncBtn.setText("Syncing now...");
+				syncBtn.setText("Syncing...");
+				syncBtn.removeClass("ical-sync-success", "ical-sync-fail");
 				try {
 					await this.plugin.saveCalendar();
-					new Notice("Sync successful.");
+					syncBtn.setText("Synced!");
+					syncBtn.addClass("ical-sync-success");
 				} catch {
-					new Notice(`iCal Pro: sync failed. ${this.plugin.lastSyncMessage}`);
+					syncBtn.setText("Failed");
+					syncBtn.addClass("ical-sync-fail");
 				} finally {
-					this.refreshStatusCard();
+					window.setTimeout(() => this.refreshStatusCard(), 1500);
 				}
 			});
 		});
 		const diagnosticsBtn = syncCol.createEl("button", { text: "Copy diagnostics", cls: "ical-sync-button" });
+		diagnosticsBtn.title = "Copies settings, readiness, preview, and recent sync results for issue reports.";
 		diagnosticsBtn.onClickEvent(() => {
 			void navigator.clipboard.writeText(this.plugin.getDiagnosticsBundle());
 			new Notice("Diagnostics copied.");
@@ -215,7 +219,7 @@ export class SettingsTab extends PluginSettingTab {
 			.setName("Add source path")
 			.setDesc("Add another path/category rule.")
 			.addButton((button) =>
-				button.setButtonText("Add path").onClick(() => {
+				button.setIcon("plus").setButtonText("Add path").onClick(() => {
 					this.runAsync(async () => {
 						await this.plugin.updateSettings(
 							{
@@ -242,7 +246,7 @@ export class SettingsTab extends PluginSettingTab {
 			.setName("Add excluded path")
 			.setDesc("Add another folder or file to ignore.")
 			.addButton((button) =>
-				button.setButtonText("Add exclusion").onClick(() => {
+				button.setIcon("plus").setButtonText("Add exclusion").onClick(() => {
 					this.runAsync(async () => {
 						await this.plugin.updateSettings(
 							{
@@ -749,14 +753,16 @@ export class SettingsTab extends PluginSettingTab {
 						this.scheduleSourceRuleUpdate(index, { path: normalizePath(value) || "/" });
 					});
 			})
-			.addText((text) =>
+			.addText((text) => {
+				const existingCategories = this.plugin.settings.sourceRules.map((r) => r.category);
+				new CategorySuggest(this.app, text.inputEl, existingCategories);
 				text
 					.setPlaceholder("Work")
 					.setValue(rule.category)
 					.onChange((value) => {
 						this.scheduleSourceRuleUpdate(index, { category: value });
-					}),
-			)
+					});
+			})
 			.addExtraButton((button) =>
 				button
 					.setIcon("trash")

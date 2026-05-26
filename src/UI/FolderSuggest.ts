@@ -32,3 +32,29 @@ export class FolderSuggest extends AbstractInputSuggest<TFolder> {
         this.close();
     }
 }
+
+export class CategorySuggest extends AbstractInputSuggest<string> {
+    private readonly textInput: HTMLInputElement;
+    private readonly categories: string[];
+
+    constructor(app: App, textInputEl: HTMLInputElement, categories: string[]) {
+        super(app, textInputEl);
+        this.textInput = textInputEl;
+        this.categories = [...new Set(categories.filter((c) => c.trim()))];
+    }
+
+    getSuggestions(inputStr: string): string[] {
+        const lower = inputStr.toLowerCase();
+        return this.categories.filter((c) => c.toLowerCase().includes(lower));
+    }
+
+    renderSuggestion(category: string, el: HTMLElement): void {
+        el.setText(category);
+    }
+
+    selectSuggestion(category: string): void {
+        this.textInput.value = category;
+        this.textInput.trigger("input");
+        this.close();
+    }
+}
