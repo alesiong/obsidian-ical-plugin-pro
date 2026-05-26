@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.1.6] - 2026-05-26
+- Re-released the review-safe manifest metadata after the 2.1.5 tag pointed at a commit missing the required `version` field.
+- Synced `package.json`, `package-lock.json`, `manifest.json`, and `versions.json` to the release version.
+
 ## [2.1.5] - 2026-04-24
 - Enabled TypeScript strict mode and fixed all type safety issues.
 - Added missing version field to `manifest.json`.
