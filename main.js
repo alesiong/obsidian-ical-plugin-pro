@@ -1805,10 +1805,10 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
       cls: "ical-pro-repo-link"
     });
     this.renderStatusCard(containerEl);
+    this.renderDestinationSettings(containerEl);
     this.renderTaskSourceSettings(containerEl);
     this.renderDateSettings(containerEl);
     this.renderFilteringSettings(containerEl);
-    this.renderDestinationSettings(containerEl);
     this.renderAdvancedSettings(containerEl);
     this.renderSupportSection(containerEl);
   }
@@ -1844,17 +1844,18 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     (0, import_obsidian4.setIcon)(syncTitle, "refresh-cw");
     syncTitle.createSpan({ text: " Sync status" });
     const syncInfo = syncCol.createDiv({ cls: "ical-sync-info" });
-    syncInfo.createEl("div", { text: `Result: ${this.plugin.lastSyncStatus}`, cls: `ical-status-${this.plugin.lastSyncStatus.toLowerCase()}` });
-    syncInfo.createEl("div", { text: `At: ${this.plugin.lastSyncTime}`, cls: "ical-sync-time" });
+    const resultRow = syncInfo.createDiv({ cls: "ical-sync-result" });
+    resultRow.createSpan({ text: this.plugin.lastSyncStatus, cls: `ical-status-${this.plugin.lastSyncStatus.toLowerCase()}` });
+    resultRow.createSpan({ text: `  ${this.plugin.lastSyncTime}`, cls: "ical-sync-time" });
     if (this.plugin.lastSyncMessage) {
-      syncInfo.createEl("div", { text: this.plugin.lastSyncMessage, cls: "ical-sync-time" });
+      syncInfo.createEl("div", { text: this.plugin.lastSyncMessage, cls: "ical-sync-detail" });
     }
     const readiness = this.plugin.getSyncReadiness();
     if (readiness.ready) {
-      syncInfo.createEl("div", { text: `Ready: ${readiness.activeDestinations.join(", ")}`, cls: "ical-sync-time" });
+      syncInfo.createEl("div", { text: `Ready: ${readiness.activeDestinations.join(", ")}`, cls: "ical-sync-detail" });
     } else {
       readiness.issues.forEach((issue) => {
-        syncInfo.createEl("div", { text: issue, cls: "ical-sync-time" });
+        syncInfo.createEl("div", { text: issue, cls: "ical-sync-detail ical-sync-issue" });
       });
       const guidance = this.plugin.getRecommendedNextStep();
       if (guidance && guidance !== "No destination issues detected.") {
@@ -1864,35 +1865,27 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
       }
     }
     const preview = this.plugin.getSyncPreview();
-    syncInfo.createEl(
-      "div",
-      {
-        text: `Preview: ${preview.exportedTaskCount} exported, ${preview.eventCount} VEVENT, ${preview.todoCount} VTODO, ${preview.filteredTaskCount} filtered`,
-        cls: "ical-sync-time"
-      }
-    );
-    preview.filteredReasons.forEach((entry) => {
-      syncInfo.createEl("div", {
-        text: `Filtered: ${entry.reason} (${entry.count})`,
-        cls: "ical-sync-time"
+    const previewRow = syncInfo.createDiv({ cls: "ical-sync-preview" });
+    previewRow.createSpan({ text: `${preview.exportedTaskCount}`, cls: "ical-preview-count" });
+    previewRow.createSpan({ text: ` to export ` });
+    previewRow.createSpan({ text: `(${preview.eventCount} events, ${preview.todoCount} todos)`, cls: "ical-sync-time" });
+    if (preview.filteredTaskCount > 0) {
+      const filteredRow = syncInfo.createDiv({ cls: "ical-sync-detail" });
+      filteredRow.createSpan({ text: `${preview.filteredTaskCount} filtered` });
+      preview.filteredReasons.forEach((entry) => {
+        syncInfo.createEl("div", { text: `${entry.reason} (${entry.count})`, cls: "ical-sync-sub" });
       });
-    });
-    preview.todoReasons.forEach((entry) => {
-      syncInfo.createEl("div", {
-        text: `VTODO: ${entry.reason} (${entry.count})`,
-        cls: "ical-sync-time"
-      });
-    });
+    }
     const recentResult = this.plugin.syncHistory[0];
     if (recentResult == null ? void 0 : recentResult.destinationResults.length) {
+      syncInfo.createDiv({ cls: "ical-sync-divider" });
       recentResult.destinationResults.forEach((result) => {
-        syncInfo.createEl(
-          "div",
-          {
-            text: `${result.name}: ${result.status}${result.message ? ` - ${result.message}` : ""}`,
-            cls: "ical-sync-time"
-          }
-        );
+        const row = syncInfo.createDiv({ cls: `ical-sync-dest ical-dest-${result.status}` });
+        row.createSpan({ text: result.name, cls: "ical-dest-name" });
+        row.createSpan({ text: result.status });
+        if (result.message) {
+          row.createSpan({ text: ` \u2014 ${result.message}`, cls: "ical-sync-time" });
+        }
       });
     }
     const syncBtn = syncCol.createEl("button", { text: "Sync now", cls: "mod-cta ical-sync-button" });
@@ -2003,7 +1996,7 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
   }
   renderFilteringSettings(parent) {
     const containerEl = this.addSection(parent, "filter", "Content and filters");
-    const globalFilter = new import_obsidian4.Setting(containerEl).setName("Respect tasks global filter").setDesc("Require these tags for a checkbox to count as a real task.").addToggle(
+    const globalFilter = new import_obsidian4.Setting(containerEl).setName("Respect tasks global filter").setDesc("Only treat checkboxes as tasks if they contain one of these tags. Matches the Obsidian Tasks plugin global filter.").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.respectGlobalTaskFilter).onChange((value) => {
         this.runAsync(() => this.plugin.updateSettings({ respectGlobalTaskFilter: value }, { rebuildIndex: true }));
         globalFilter.settingEl.classList.toggle("is-off", !value);
@@ -2021,7 +2014,7 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     );
     if (!this.plugin.settings.respectGlobalTaskFilter) globalFilter.settingEl.classList.add("is-off");
     globalFilter.settingEl.classList.add("ical-filter-row");
-    const catInclude = new import_obsidian4.Setting(containerEl).setName("Category inclusion filter").setDesc("Only export tasks whose derived categories match these values (space separated).").addToggle(
+    const catInclude = new import_obsidian4.Setting(containerEl).setName("Category inclusion filter").setDesc("Only export tasks in these categories. Separate multiple values with spaces (e.g. Work travel/asia).").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.isIncludeCategoriesEnabled).onChange((value) => {
         this.runAsync(() => this.plugin.updateSettings({ isIncludeCategoriesEnabled: value }, { rebuildIndex: true }));
         catInclude.settingEl.classList.toggle("is-off", !value);
@@ -2057,7 +2050,7 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     );
     if (!this.plugin.settings.isExcludeCategoriesEnabled) catExclude.settingEl.classList.add("is-off");
     catExclude.settingEl.classList.add("ical-filter-row");
-    const tagInclude = new import_obsidian4.Setting(containerEl).setName("Tag inclusion filter").setDesc("Only sync tasks containing these tags (space separated).").addToggle(
+    const tagInclude = new import_obsidian4.Setting(containerEl).setName("Tag inclusion filter").setDesc("Only sync tasks that have one of these tags. Use # prefix, separate with spaces (e.g. #work #sync).").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.isIncludeTasksWithTags).onChange((value) => {
         this.runAsync(() => this.plugin.updateSettings(
           { isIncludeTasksWithTags: value },
@@ -2078,7 +2071,7 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     );
     if (!this.plugin.settings.isIncludeTasksWithTags) tagInclude.settingEl.classList.add("is-off");
     tagInclude.settingEl.classList.add("ical-filter-row");
-    const tagExclude = new import_obsidian4.Setting(containerEl).setName("Tag exclusion filter").setDesc("Ignore tasks containing these tags.").addToggle(
+    const tagExclude = new import_obsidian4.Setting(containerEl).setName("Tag exclusion filter").setDesc("Skip tasks that have any of these tags. Use # prefix (e.g. #private #draft).").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.isExcludeTasksWithTags).onChange((value) => {
         this.runAsync(() => this.plugin.updateSettings(
           { isExcludeTasksWithTags: value },
@@ -2241,10 +2234,13 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     const header = group.createDiv({ cls: "ical-pro-section-header" });
     const iconEl = header.createDiv({ cls: "ical-pro-section-icon" });
     (0, import_obsidian4.setIcon)(iconEl, icon);
-    new import_obsidian4.Setting(header).setHeading().setName(text);
+    const heading = new import_obsidian4.Setting(header).setHeading().setName(text);
     const indicator = header.createSpan({ cls: "collapse-indicator" });
     (0, import_obsidian4.setIcon)(indicator, "chevron-down");
-    header.onClickEvent(() => group.classList.toggle("is-collapsed"));
+    heading.settingEl.onClickEvent((e) => {
+      if (e.target.closest(".setting-item-control")) return;
+      group.classList.toggle("is-collapsed");
+    });
     return group;
   }
   updateUrlDisplay() {

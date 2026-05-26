@@ -59,10 +59,10 @@ export class SettingsTab extends PluginSettingTab {
 		});
 
 		this.renderStatusCard(containerEl);
+		this.renderDestinationSettings(containerEl);
 		this.renderTaskSourceSettings(containerEl);
 		this.renderDateSettings(containerEl);
 		this.renderFilteringSettings(containerEl);
-		this.renderDestinationSettings(containerEl);
 		this.renderAdvancedSettings(containerEl);
 		this.renderSupportSection(containerEl);
 	}
@@ -104,17 +104,22 @@ export class SettingsTab extends PluginSettingTab {
 		setIcon(syncTitle, "refresh-cw");
 		syncTitle.createSpan({ text: " Sync status" });
 		const syncInfo = syncCol.createDiv({ cls: "ical-sync-info" });
-		syncInfo.createEl("div", { text: `Result: ${this.plugin.lastSyncStatus}`, cls: `ical-status-${this.plugin.lastSyncStatus.toLowerCase()}` });
-		syncInfo.createEl("div", { text: `At: ${this.plugin.lastSyncTime}`, cls: "ical-sync-time" });
+
+		// Last sync result
+		const resultRow = syncInfo.createDiv({ cls: "ical-sync-result" });
+		resultRow.createSpan({ text: this.plugin.lastSyncStatus, cls: `ical-status-${this.plugin.lastSyncStatus.toLowerCase()}` });
+		resultRow.createSpan({ text: `  ${this.plugin.lastSyncTime}`, cls: "ical-sync-time" });
 		if (this.plugin.lastSyncMessage) {
-			syncInfo.createEl("div", { text: this.plugin.lastSyncMessage, cls: "ical-sync-time" });
+			syncInfo.createEl("div", { text: this.plugin.lastSyncMessage, cls: "ical-sync-detail" });
 		}
+
+		// Readiness
 		const readiness = this.plugin.getSyncReadiness();
 		if (readiness.ready) {
-			syncInfo.createEl("div", { text: `Ready: ${readiness.activeDestinations.join(", ")}`, cls: "ical-sync-time" });
+			syncInfo.createEl("div", { text: `Ready: ${readiness.activeDestinations.join(", ")}`, cls: "ical-sync-detail" });
 		} else {
 			readiness.issues.forEach((issue) => {
-				syncInfo.createEl("div", { text: issue, cls: "ical-sync-time" });
+				syncInfo.createEl("div", { text: issue, cls: "ical-sync-detail ical-sync-issue" });
 			});
 			const guidance = this.plugin.getRecommendedNextStep();
 			if (guidance && guidance !== "No destination issues detected.") {
@@ -123,36 +128,32 @@ export class SettingsTab extends PluginSettingTab {
 				guidanceEl.createSpan({ text: guidance });
 			}
 		}
+
+		// Preview
 		const preview = this.plugin.getSyncPreview();
-		syncInfo.createEl(
-			"div",
-			{
-				text: `Preview: ${preview.exportedTaskCount} exported, ${preview.eventCount} VEVENT, ${preview.todoCount} VTODO, ${preview.filteredTaskCount} filtered`,
-				cls: "ical-sync-time",
-			},
-		);
-		preview.filteredReasons.forEach((entry) => {
-			syncInfo.createEl("div", {
-				text: `Filtered: ${entry.reason} (${entry.count})`,
-				cls: "ical-sync-time",
+		const previewRow = syncInfo.createDiv({ cls: "ical-sync-preview" });
+		previewRow.createSpan({ text: `${preview.exportedTaskCount}`, cls: "ical-preview-count" });
+		previewRow.createSpan({ text: ` to export ` });
+		previewRow.createSpan({ text: `(${preview.eventCount} events, ${preview.todoCount} todos)`, cls: "ical-sync-time" });
+		if (preview.filteredTaskCount > 0) {
+			const filteredRow = syncInfo.createDiv({ cls: "ical-sync-detail" });
+			filteredRow.createSpan({ text: `${preview.filteredTaskCount} filtered` });
+			preview.filteredReasons.forEach((entry) => {
+				syncInfo.createEl("div", { text: `${entry.reason} (${entry.count})`, cls: "ical-sync-sub" });
 			});
-		});
-		preview.todoReasons.forEach((entry) => {
-			syncInfo.createEl("div", {
-				text: `VTODO: ${entry.reason} (${entry.count})`,
-				cls: "ical-sync-time",
-			});
-		});
+		}
+
+		// Destination results
 		const recentResult = this.plugin.syncHistory[0];
 		if (recentResult?.destinationResults.length) {
+			syncInfo.createDiv({ cls: "ical-sync-divider" });
 			recentResult.destinationResults.forEach((result) => {
-				syncInfo.createEl(
-					"div",
-					{
-						text: `${result.name}: ${result.status}${result.message ? ` - ${result.message}` : ""}`,
-						cls: "ical-sync-time",
-					},
-				);
+				const row = syncInfo.createDiv({ cls: `ical-sync-dest ical-dest-${result.status}` });
+				row.createSpan({ text: result.name, cls: "ical-dest-name" });
+				row.createSpan({ text: result.status });
+				if (result.message) {
+					row.createSpan({ text: ` — ${result.message}`, cls: "ical-sync-time" });
+				}
 			});
 		}
 
@@ -303,7 +304,7 @@ export class SettingsTab extends PluginSettingTab {
 
 		const globalFilter = new Setting(containerEl)
 			.setName("Respect tasks global filter")
-			.setDesc("Require these tags for a checkbox to count as a real task.")
+			.setDesc("Only treat checkboxes as tasks if they contain one of these tags. Matches the Obsidian Tasks plugin global filter.")
 			.addToggle((toggle) =>
 				toggle.setValue(this.plugin.settings.respectGlobalTaskFilter).onChange((value) => {
 					this.runAsync(() => this.plugin.updateSettings({ respectGlobalTaskFilter: value }, { rebuildIndex: true }));
@@ -325,7 +326,7 @@ export class SettingsTab extends PluginSettingTab {
 
 		const catInclude = new Setting(containerEl)
 			.setName("Category inclusion filter")
-			.setDesc("Only export tasks whose derived categories match these values (space separated).")
+			.setDesc("Only export tasks in these categories. Separate multiple values with spaces (e.g. Work travel/asia).")
 			.addToggle((toggle) =>
 				toggle.setValue(this.plugin.settings.isIncludeCategoriesEnabled).onChange((value) => {
 					this.runAsync(() => this.plugin.updateSettings({ isIncludeCategoriesEnabled: value }, { rebuildIndex: true }));
@@ -369,7 +370,7 @@ export class SettingsTab extends PluginSettingTab {
 
 		const tagInclude = new Setting(containerEl)
 			.setName("Tag inclusion filter")
-			.setDesc("Only sync tasks containing these tags (space separated).")
+			.setDesc("Only sync tasks that have one of these tags. Use # prefix, separate with spaces (e.g. #work #sync).")
 			.addToggle((toggle) =>
 				toggle.setValue(this.plugin.settings.isIncludeTasksWithTags).onChange((value) => {
 					this.runAsync(() => this.plugin.updateSettings(
@@ -394,7 +395,7 @@ export class SettingsTab extends PluginSettingTab {
 
 		const tagExclude = new Setting(containerEl)
 			.setName("Tag exclusion filter")
-			.setDesc("Ignore tasks containing these tags.")
+			.setDesc("Skip tasks that have any of these tags. Use # prefix (e.g. #private #draft).")
 			.addToggle((toggle) =>
 				toggle.setValue(this.plugin.settings.isExcludeTasksWithTags).onChange((value) => {
 					this.runAsync(() => this.plugin.updateSettings(
@@ -620,10 +621,13 @@ export class SettingsTab extends PluginSettingTab {
 		const header = group.createDiv({ cls: "ical-pro-section-header" });
 		const iconEl = header.createDiv({ cls: "ical-pro-section-icon" });
 		setIcon(iconEl, icon);
-		new Setting(header).setHeading().setName(text);
+		const heading = new Setting(header).setHeading().setName(text);
 		const indicator = header.createSpan({ cls: "collapse-indicator" });
 		setIcon(indicator, "chevron-down");
-		header.onClickEvent(() => group.classList.toggle("is-collapsed"));
+		heading.settingEl.onClickEvent((e) => {
+			if ((e.target as HTMLElement).closest(".setting-item-control")) return;
+			group.classList.toggle("is-collapsed");
+		});
 		return group;
 	}
 

@@ -109,7 +109,52 @@
 .ical-status-success { color: var(--text-success); font-weight: bold; }
 .ical-status-partial { color: var(--text-warning); font-weight: bold; }
 .ical-status-failed { color: var(--text-error); font-weight: bold; }
-.ical-sync-time { font-size: 0.85em; opacity: 0.7; margin-top: 4px; }
+
+.ical-sync-result {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+
+.ical-sync-time { font-size: 0.85em; opacity: 0.7; }
+.ical-sync-detail { font-size: 0.85em; opacity: 0.7; margin-top: 2px; }
+.ical-sync-issue { color: var(--text-warning); opacity: 1; }
+.ical-sync-sub { font-size: 0.8em; opacity: 0.5; padding-left: 12px; margin-top: 1px; }
+
+.ical-sync-preview {
+    margin-top: 6px;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
+
+.ical-preview-count {
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+.ical-sync-divider {
+    border-top: 1px solid var(--background-modifier-border);
+    margin: 6px 0;
+}
+
+.ical-sync-dest {
+    font-size: 0.85em;
+    margin-top: 3px;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.ical-dest-name {
+    font-weight: 500;
+    min-width: 80px;
+}
+
+.ical-dest-success { color: var(--text-success); }
+.ical-dest-partial { color: var(--text-warning); }
+.ical-dest-failed { color: var(--text-error); }
 .ical-sync-error {
     font-size: 0.75em;
     color: var(--text-error);
