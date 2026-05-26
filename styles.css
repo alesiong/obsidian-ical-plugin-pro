@@ -40,7 +40,7 @@
     border-radius: 6px;
     padding: 16px;
     margin-bottom: 30px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 8px var(--background-modifier-box-shadow);
 }
 
 .ical-pro-status-grid {
@@ -110,6 +110,7 @@
     height: 100%;
 }
 
+.ical-status-never-synced { color: var(--text-muted); }
 .ical-status-success { color: var(--text-success); font-weight: bold; }
 .ical-status-partial { color: var(--text-warning); font-weight: bold; }
 .ical-status-failed { color: var(--text-error); font-weight: bold; }
@@ -159,16 +160,6 @@
 .ical-dest-success { color: var(--text-success); }
 .ical-dest-partial { color: var(--text-warning); }
 .ical-dest-failed { color: var(--text-error); }
-.ical-sync-error {
-    font-size: 0.75em;
-    color: var(--text-error);
-    margin-top: 4px;
-    word-break: break-all;
-    background: var(--background-modifier-error);
-    padding: 4px;
-    border-radius: 4px;
-}
-
 .ical-sync-button {
     margin-top: 12px;
     width: 100%;
@@ -192,6 +183,8 @@
     margin-bottom: 12px;
     padding-bottom: 4px;
     border-bottom: 1px solid var(--background-modifier-border);
+    cursor: pointer;
+    user-select: none;
 }
 
 .ical-pro-section-icon {
@@ -235,11 +228,6 @@
 
 .ical-pro-section-group.is-collapsed .ical-pro-section-header {
     margin-bottom: 0;
-}
-
-.ical-pro-section-header {
-    cursor: pointer;
-    user-select: none;
 }
 
 .ical-pro-section-header .collapse-indicator {

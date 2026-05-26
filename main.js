@@ -1812,7 +1812,7 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     containerEl.empty();
     const header = containerEl.createDiv({ cls: "ical-pro-header" });
     const headerText = header.createDiv({ cls: "ical-pro-header-title" });
-    new import_obsidian4.Setting(headerText).setHeading().setName("Calendar sync").setDesc("v" + this.plugin.manifest.version);
+    new import_obsidian4.Setting(headerText).setHeading().setName(this.plugin.manifest.name).setDesc("v" + this.plugin.manifest.version);
     const authorInfo = header.createDiv({ cls: "ical-pro-author" });
     authorInfo.createSpan({ text: "by " });
     authorInfo.createEl("a", {
@@ -1827,12 +1827,12 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
       cls: "ical-pro-repo-link"
     });
     this.renderStatusCard(containerEl);
+    this.renderSupportSection(containerEl);
     this.renderDestinationSettings(containerEl);
     this.renderTaskSourceSettings(containerEl);
     this.renderDateSettings(containerEl);
     this.renderFilteringSettings(containerEl);
     this.renderAdvancedSettings(containerEl);
-    this.renderSupportSection(containerEl);
   }
   renderSupportSection(parent) {
     const containerEl = this.addSection(parent, "support", "heart", "Support the project");
@@ -1876,8 +1876,9 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     syncTitle.createSpan({ text: " Sync status" });
     const syncInfo = syncCol.createDiv({ cls: "ical-sync-info" });
     const resultRow = syncInfo.createDiv({ cls: "ical-sync-result" });
-    resultRow.createSpan({ text: this.plugin.lastSyncStatus, cls: `ical-status-${this.plugin.lastSyncStatus.toLowerCase()}` });
-    resultRow.createSpan({ text: `  ${this.plugin.lastSyncTime}`, cls: "ical-sync-time" });
+    const statusClass = `ical-status-${this.plugin.lastSyncStatus.toLowerCase().replace(/\s+/g, "-")}`;
+    resultRow.createSpan({ text: this.plugin.lastSyncStatus, cls: statusClass });
+    resultRow.createSpan({ text: this.plugin.lastSyncTime, cls: "ical-sync-time" });
     if (this.plugin.lastSyncMessage) {
       syncInfo.createEl("div", { text: this.plugin.lastSyncMessage, cls: "ical-sync-detail" });
     }
@@ -2076,7 +2077,7 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     );
     if (!this.plugin.settings.isIncludeCategoriesEnabled) catInclude.settingEl.classList.add("is-off");
     catInclude.settingEl.classList.add("ical-filter-row");
-    const catExclude = new import_obsidian4.Setting(containerEl).setName("Category exclusion filter").setDesc("Hide tasks whose derived categories match these values.").addToggle(
+    const catExclude = new import_obsidian4.Setting(containerEl).setName("Category exclusion filter").setDesc("Hide tasks whose derived categories match these values. Separate with spaces (e.g. Personal archive).").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.isExcludeCategoriesEnabled).onChange((value) => {
         this.runAsync(() => this.plugin.updateSettings({ isExcludeCategoriesEnabled: value }, { rebuildIndex: true }));
         catExclude.settingEl.classList.toggle("is-off", !value);

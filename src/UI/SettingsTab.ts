@@ -43,7 +43,7 @@ export class SettingsTab extends PluginSettingTab {
 
 		const header = containerEl.createDiv({ cls: "ical-pro-header" });
 		const headerText = header.createDiv({ cls: "ical-pro-header-title" });
-		new Setting(headerText).setHeading().setName("Calendar sync").setDesc("v" + this.plugin.manifest.version);
+		new Setting(headerText).setHeading().setName(this.plugin.manifest.name).setDesc("v" + this.plugin.manifest.version);
 
 		const authorInfo = header.createDiv({ cls: "ical-pro-author" });
 		authorInfo.createSpan({ text: "by " });
@@ -60,12 +60,12 @@ export class SettingsTab extends PluginSettingTab {
 		});
 
 		this.renderStatusCard(containerEl);
+		this.renderSupportSection(containerEl);
 		this.renderDestinationSettings(containerEl);
 		this.renderTaskSourceSettings(containerEl);
 		this.renderDateSettings(containerEl);
 		this.renderFilteringSettings(containerEl);
 		this.renderAdvancedSettings(containerEl);
-		this.renderSupportSection(containerEl);
 	}
 
 	private renderSupportSection(parent: HTMLElement): void {
@@ -119,8 +119,9 @@ export class SettingsTab extends PluginSettingTab {
 
 		// Last sync result
 		const resultRow = syncInfo.createDiv({ cls: "ical-sync-result" });
-		resultRow.createSpan({ text: this.plugin.lastSyncStatus, cls: `ical-status-${this.plugin.lastSyncStatus.toLowerCase()}` });
-		resultRow.createSpan({ text: `  ${this.plugin.lastSyncTime}`, cls: "ical-sync-time" });
+		const statusClass = `ical-status-${this.plugin.lastSyncStatus.toLowerCase().replace(/\s+/g, "-")}`;
+		resultRow.createSpan({ text: this.plugin.lastSyncStatus, cls: statusClass });
+		resultRow.createSpan({ text: this.plugin.lastSyncTime, cls: "ical-sync-time" });
 		if (this.plugin.lastSyncMessage) {
 			syncInfo.createEl("div", { text: this.plugin.lastSyncMessage, cls: "ical-sync-detail" });
 		}
@@ -374,7 +375,7 @@ export class SettingsTab extends PluginSettingTab {
 
 		const catExclude = new Setting(containerEl)
 			.setName("Category exclusion filter")
-			.setDesc("Hide tasks whose derived categories match these values.")
+			.setDesc("Hide tasks whose derived categories match these values. Separate with spaces (e.g. Personal archive).")
 			.addToggle((toggle) =>
 				toggle.setValue(this.plugin.settings.isExcludeCategoriesEnabled).onChange((value) => {
 					this.runAsync(() => this.plugin.updateSettings({ isExcludeCategoriesEnabled: value }, { rebuildIndex: true }));
