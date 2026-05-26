@@ -199,9 +199,11 @@
     color: var(--text-accent);
 }
 
-.ical-pro-section-header h3 {
+.ical-pro-section-title {
     margin: 0;
     font-size: 1.1em;
+    flex: 1;
+    min-width: 0;
 }
 
 .ical-pro-hint {

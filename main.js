@@ -2283,10 +2283,10 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     const header = group.createDiv({ cls: "ical-pro-section-header" });
     const iconEl = header.createDiv({ cls: "ical-pro-section-icon" });
     (0, import_obsidian4.setIcon)(iconEl, icon);
-    const heading = new import_obsidian4.Setting(header).setHeading().setName(text);
+    header.createEl("h3", { text, cls: "ical-pro-section-title" });
     const indicator = header.createSpan({ cls: "collapse-indicator" });
     (0, import_obsidian4.setIcon)(indicator, "chevron-down");
-    heading.settingEl.onClickEvent((e) => {
+    header.onClickEvent((e) => {
       if (e.target.closest(".setting-item-control")) return;
       const nowCollapsed = group.classList.toggle("is-collapsed");
       if (nowCollapsed) {
