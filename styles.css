@@ -202,6 +202,35 @@
     transform: scale(1.05);
 }
 
+/* --- Conditional visibility --- */
+.ical-pro-conditional {
+    transition: opacity 0.15s ease;
+}
+
+.ical-pro-conditional.is-hidden {
+    display: none;
+}
+
+.ical-filter-row.is-off .text-component {
+    display: none;
+}
+
+.ical-pro-guidance {
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: var(--background-modifier-success);
+    border-radius: 4px;
+    font-size: 0.85em;
+    color: var(--text-success);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ical-pro-guidance svg {
+    flex-shrink: 0;
+}
+
 /* --- Utility --- */
 .setting-item {
     padding: 12px 0;

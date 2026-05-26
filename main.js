@@ -1856,6 +1856,12 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
       readiness.issues.forEach((issue) => {
         syncInfo.createEl("div", { text: issue, cls: "ical-sync-time" });
       });
+      const guidance = this.plugin.getRecommendedNextStep();
+      if (guidance && guidance !== "No destination issues detected.") {
+        const guidanceEl = syncCol.createDiv({ cls: "ical-pro-guidance" });
+        (0, import_obsidian4.setIcon)(guidanceEl, "lightbulb");
+        guidanceEl.createSpan({ text: guidance });
+      }
     }
     const preview = this.plugin.getSyncPreview();
     syncInfo.createEl(
@@ -1997,9 +2003,10 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
   }
   renderFilteringSettings(parent) {
     const containerEl = this.addSection(parent, "filter", "Content and filters");
-    new import_obsidian4.Setting(containerEl).setName("Respect tasks global filter").setDesc("Require these tags for a checkbox to count as a real task.").addToggle(
+    const globalFilter = new import_obsidian4.Setting(containerEl).setName("Respect tasks global filter").setDesc("Require these tags for a checkbox to count as a real task.").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.respectGlobalTaskFilter).onChange((value) => {
         this.runAsync(() => this.plugin.updateSettings({ respectGlobalTaskFilter: value }, { rebuildIndex: true }));
+        globalFilter.settingEl.classList.toggle("is-off", !value);
       })
     ).addText(
       (text) => text.setPlaceholder("#task").setValue(this.plugin.settings.globalTaskFilterTags).onChange((value) => {
@@ -2012,9 +2019,12 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
         );
       })
     );
-    new import_obsidian4.Setting(containerEl).setName("Category inclusion filter").setDesc("Only export tasks whose derived categories match these values (space separated).").addToggle(
+    if (!this.plugin.settings.respectGlobalTaskFilter) globalFilter.settingEl.classList.add("is-off");
+    globalFilter.settingEl.classList.add("ical-filter-row");
+    const catInclude = new import_obsidian4.Setting(containerEl).setName("Category inclusion filter").setDesc("Only export tasks whose derived categories match these values (space separated).").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.isIncludeCategoriesEnabled).onChange((value) => {
         this.runAsync(() => this.plugin.updateSettings({ isIncludeCategoriesEnabled: value }, { rebuildIndex: true }));
+        catInclude.settingEl.classList.toggle("is-off", !value);
       })
     ).addText(
       (text) => text.setPlaceholder("Work travel/asia").setValue(this.plugin.settings.includeCategories).onChange((value) => {
@@ -2027,9 +2037,12 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
         );
       })
     );
-    new import_obsidian4.Setting(containerEl).setName("Category exclusion filter").setDesc("Hide tasks whose derived categories match these values.").addToggle(
+    if (!this.plugin.settings.isIncludeCategoriesEnabled) catInclude.settingEl.classList.add("is-off");
+    catInclude.settingEl.classList.add("ical-filter-row");
+    const catExclude = new import_obsidian4.Setting(containerEl).setName("Category exclusion filter").setDesc("Hide tasks whose derived categories match these values.").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.isExcludeCategoriesEnabled).onChange((value) => {
         this.runAsync(() => this.plugin.updateSettings({ isExcludeCategoriesEnabled: value }, { rebuildIndex: true }));
+        catExclude.settingEl.classList.toggle("is-off", !value);
       })
     ).addText(
       (text) => text.setPlaceholder("Personal archive").setValue(this.plugin.settings.excludeCategories).onChange((value) => {
@@ -2042,12 +2055,15 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
         );
       })
     );
-    new import_obsidian4.Setting(containerEl).setName("Tag inclusion filter").setDesc("Only sync tasks containing these tags (space separated).").addToggle(
+    if (!this.plugin.settings.isExcludeCategoriesEnabled) catExclude.settingEl.classList.add("is-off");
+    catExclude.settingEl.classList.add("ical-filter-row");
+    const tagInclude = new import_obsidian4.Setting(containerEl).setName("Tag inclusion filter").setDesc("Only sync tasks containing these tags (space separated).").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.isIncludeTasksWithTags).onChange((value) => {
         this.runAsync(() => this.plugin.updateSettings(
           { isIncludeTasksWithTags: value },
           { rebuildIndex: true }
         ));
+        tagInclude.settingEl.classList.toggle("is-off", !value);
       })
     ).addText(
       (text) => text.setPlaceholder("#work #sync").setValue(this.plugin.settings.includeTasksWithTags).onChange((value) => {
@@ -2060,12 +2076,15 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
         );
       })
     );
-    new import_obsidian4.Setting(containerEl).setName("Tag exclusion filter").setDesc("Ignore tasks containing these tags.").addToggle(
+    if (!this.plugin.settings.isIncludeTasksWithTags) tagInclude.settingEl.classList.add("is-off");
+    tagInclude.settingEl.classList.add("ical-filter-row");
+    const tagExclude = new import_obsidian4.Setting(containerEl).setName("Tag exclusion filter").setDesc("Ignore tasks containing these tags.").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.isExcludeTasksWithTags).onChange((value) => {
         this.runAsync(() => this.plugin.updateSettings(
           { isExcludeTasksWithTags: value },
           { rebuildIndex: true }
         ));
+        tagExclude.settingEl.classList.toggle("is-off", !value);
       })
     ).addText(
       (text) => text.setPlaceholder("#private").setValue(this.plugin.settings.excludeTasksWithTags).onChange((value) => {
@@ -2078,6 +2097,8 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
         );
       })
     );
+    if (!this.plugin.settings.isExcludeTasksWithTags) tagExclude.settingEl.classList.add("is-off");
+    tagExclude.settingEl.classList.add("ical-filter-row");
     new import_obsidian4.Setting(containerEl).setName("Ignore completed").setDesc("Do not sync tasks that are already marked as done.").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.ignoreCompletedTasks).onChange((value) => {
         this.runAsync(() => this.plugin.updateSettings({ ignoreCompletedTasks: value }, { rebuildIndex: true }));
@@ -2096,10 +2117,16 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     );
     new import_obsidian4.Setting(containerEl).setName("Save to local file").setDesc("Export the .ics file to your vault for local sync workflows.").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.isSaveToFileEnabled).onChange((value) => {
-        this.runAsync(() => this.plugin.updateSettings({ isSaveToFileEnabled: value }));
+        this.runAsync(async () => {
+          await this.plugin.updateSettings({ isSaveToFileEnabled: value });
+          localFileDiv.classList.toggle("is-hidden", !value);
+        });
       })
     );
-    new import_obsidian4.Setting(containerEl).setName("Vault storage path").setDesc("Specify the folder for the local .ics file relative to vault root.").addText((text) => {
+    const localFileDiv = containerEl.createDiv({
+      cls: `ical-pro-conditional${this.plugin.settings.isSaveToFileEnabled ? "" : " is-hidden"}`
+    });
+    new import_obsidian4.Setting(localFileDiv).setName("Vault storage path").setDesc("Specify the folder for the local .ics file relative to vault root.").addText((text) => {
       new FolderSuggest(this.app, text.inputEl);
       text.setValue(this.plugin.settings.savePath).onChange((value) => {
         this.scheduleUpdate(
@@ -2112,11 +2139,15 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
       (toggle) => toggle.setValue(this.plugin.settings.isSaveToGistEnabled).onChange((value) => {
         this.runAsync(async () => {
           await this.plugin.updateSettings({ isSaveToGistEnabled: value });
+          gistDiv.classList.toggle("is-hidden", !value);
           this.updateUrlDisplay();
         });
       })
     );
-    new import_obsidian4.Setting(containerEl).setName("GitHub username").setDesc("Used to build the raw subscription link for your hosted gist.").addText(
+    const gistDiv = containerEl.createDiv({
+      cls: `ical-pro-conditional${this.plugin.settings.isSaveToGistEnabled ? "" : " is-hidden"}`
+    });
+    new import_obsidian4.Setting(gistDiv).setName("GitHub username").setDesc("Used to build the raw subscription link for your hosted gist.").addText(
       (text) => text.setValue(this.plugin.settings.githubUsername).onChange((value) => {
         this.scheduleUpdate("githubUsername", async () => {
           await this.plugin.updateSettings({ githubUsername: value });
@@ -2124,7 +2155,7 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
         });
       })
     );
-    new import_obsidian4.Setting(containerEl).setName("Gist ID").setDesc(this.createDescriptionWithLink(
+    new import_obsidian4.Setting(gistDiv).setName("Gist ID").setDesc(this.createDescriptionWithLink(
       "Enter the identifier from the gist link used as the sync target. ",
       "Open Gist",
       "https://gist.github.com/"
@@ -2136,7 +2167,7 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
         });
       })
     );
-    new import_obsidian4.Setting(containerEl).setName("Personal access token").setDesc(this.createDescriptionWithLink(
+    new import_obsidian4.Setting(gistDiv).setName("Personal access token").setDesc(this.createDescriptionWithLink(
       "Personal access token with 'gist' scope. ",
       "Create token",
       "https://docs.github.com/en/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token"
@@ -2146,9 +2177,9 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
           "githubPersonalAccessToken",
           () => this.plugin.updateSettings({ githubPersonalAccessToken: value })
         );
-      })
+      }).inputEl.setAttribute("type", "password")
     );
-    new import_obsidian4.Setting(containerEl).setName("Validate gist access").setDesc("Check whether the configured token and identifier are reachable.").addButton(
+    new import_obsidian4.Setting(gistDiv).setName("Validate gist access").setDesc("Check whether the configured token and identifier are reachable.").addButton(
       (button) => button.setButtonText("Validate").onClick(() => {
         this.runAsync(async () => {
           button.setDisabled(true);
@@ -2501,6 +2532,10 @@ var ObsidianIcalPlugin = class extends import_obsidian5.Plugin {
   }
   getSyncReadiness() {
     return this.syncReadinessService.evaluate(this.settings);
+  }
+  getRecommendedNextStep() {
+    const report = new DestinationHealthService().evaluate(this.settings);
+    return report.recommendedNextStep;
   }
   getSyncPreview() {
     return this.syncPreviewService.build(

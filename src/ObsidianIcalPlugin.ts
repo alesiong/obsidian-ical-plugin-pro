@@ -2,6 +2,7 @@ import { Notice, Plugin, TAbstractFile, TFile, requestUrl } from "obsidian";
 import { CalendarSyncService } from "./Application/CalendarSyncService";
 import { ConnectionValidationService } from "./Application/ConnectionValidationService";
 import { DiagnosticsService } from "./Application/DiagnosticsService";
+import { DestinationHealthService } from "./Application/DestinationHealthService";
 import { PluginSettingsStore, SyncHistoryEntry } from "./Application/PluginSettingsStore";
 import { SyncExecutionError } from "./Application/SyncExecutionError";
 import { SyncAutomationService } from "./Application/SyncAutomationService";
@@ -195,6 +196,11 @@ export default class ObsidianIcalPlugin extends Plugin {
 
 	public getSyncReadiness() {
 		return this.syncReadinessService.evaluate(this.settings);
+	}
+
+	public getRecommendedNextStep(): string {
+		const report = new DestinationHealthService().evaluate(this.settings);
+		return report.recommendedNextStep;
 	}
 
 	public getSyncPreview() {

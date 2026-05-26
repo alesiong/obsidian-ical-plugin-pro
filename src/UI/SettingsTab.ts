@@ -116,6 +116,12 @@ export class SettingsTab extends PluginSettingTab {
 			readiness.issues.forEach((issue) => {
 				syncInfo.createEl("div", { text: issue, cls: "ical-sync-time" });
 			});
+			const guidance = this.plugin.getRecommendedNextStep();
+			if (guidance && guidance !== "No destination issues detected.") {
+				const guidanceEl = syncCol.createDiv({ cls: "ical-pro-guidance" });
+				setIcon(guidanceEl, "lightbulb");
+				guidanceEl.createSpan({ text: guidance });
+			}
 		}
 		const preview = this.plugin.getSyncPreview();
 		syncInfo.createEl(
@@ -295,12 +301,13 @@ export class SettingsTab extends PluginSettingTab {
 	private renderFilteringSettings(parent: HTMLElement): void {
 		const containerEl = this.addSection(parent, "filter", "Content and filters");
 
-		new Setting(containerEl)
+		const globalFilter = new Setting(containerEl)
 			.setName("Respect tasks global filter")
 			.setDesc("Require these tags for a checkbox to count as a real task.")
 			.addToggle((toggle) =>
 				toggle.setValue(this.plugin.settings.respectGlobalTaskFilter).onChange((value) => {
 					this.runAsync(() => this.plugin.updateSettings({ respectGlobalTaskFilter: value }, { rebuildIndex: true }));
+					globalFilter.settingEl.classList.toggle("is-off", !value);
 				}),
 			)
 			.addText((text) =>
@@ -313,13 +320,16 @@ export class SettingsTab extends PluginSettingTab {
 					);
 				}),
 			);
+		if (!this.plugin.settings.respectGlobalTaskFilter) globalFilter.settingEl.classList.add("is-off");
+		globalFilter.settingEl.classList.add("ical-filter-row");
 
-		new Setting(containerEl)
+		const catInclude = new Setting(containerEl)
 			.setName("Category inclusion filter")
 			.setDesc("Only export tasks whose derived categories match these values (space separated).")
 			.addToggle((toggle) =>
 				toggle.setValue(this.plugin.settings.isIncludeCategoriesEnabled).onChange((value) => {
 					this.runAsync(() => this.plugin.updateSettings({ isIncludeCategoriesEnabled: value }, { rebuildIndex: true }));
+					catInclude.settingEl.classList.toggle("is-off", !value);
 				}),
 			)
 			.addText((text) =>
@@ -332,13 +342,16 @@ export class SettingsTab extends PluginSettingTab {
 					);
 				}),
 			);
+		if (!this.plugin.settings.isIncludeCategoriesEnabled) catInclude.settingEl.classList.add("is-off");
+		catInclude.settingEl.classList.add("ical-filter-row");
 
-		new Setting(containerEl)
+		const catExclude = new Setting(containerEl)
 			.setName("Category exclusion filter")
 			.setDesc("Hide tasks whose derived categories match these values.")
 			.addToggle((toggle) =>
 				toggle.setValue(this.plugin.settings.isExcludeCategoriesEnabled).onChange((value) => {
 					this.runAsync(() => this.plugin.updateSettings({ isExcludeCategoriesEnabled: value }, { rebuildIndex: true }));
+					catExclude.settingEl.classList.toggle("is-off", !value);
 				}),
 			)
 			.addText((text) =>
@@ -351,8 +364,10 @@ export class SettingsTab extends PluginSettingTab {
 					);
 				}),
 			);
+		if (!this.plugin.settings.isExcludeCategoriesEnabled) catExclude.settingEl.classList.add("is-off");
+		catExclude.settingEl.classList.add("ical-filter-row");
 
-		new Setting(containerEl)
+		const tagInclude = new Setting(containerEl)
 			.setName("Tag inclusion filter")
 			.setDesc("Only sync tasks containing these tags (space separated).")
 			.addToggle((toggle) =>
@@ -361,6 +376,7 @@ export class SettingsTab extends PluginSettingTab {
 						{ isIncludeTasksWithTags: value },
 						{ rebuildIndex: true },
 					));
+					tagInclude.settingEl.classList.toggle("is-off", !value);
 				}),
 			)
 			.addText((text) =>
@@ -373,8 +389,10 @@ export class SettingsTab extends PluginSettingTab {
 					);
 				}),
 			);
+		if (!this.plugin.settings.isIncludeTasksWithTags) tagInclude.settingEl.classList.add("is-off");
+		tagInclude.settingEl.classList.add("ical-filter-row");
 
-		new Setting(containerEl)
+		const tagExclude = new Setting(containerEl)
 			.setName("Tag exclusion filter")
 			.setDesc("Ignore tasks containing these tags.")
 			.addToggle((toggle) =>
@@ -383,6 +401,7 @@ export class SettingsTab extends PluginSettingTab {
 						{ isExcludeTasksWithTags: value },
 						{ rebuildIndex: true },
 					));
+					tagExclude.settingEl.classList.toggle("is-off", !value);
 				}),
 			)
 			.addText((text) =>
@@ -395,6 +414,8 @@ export class SettingsTab extends PluginSettingTab {
 					);
 				}),
 			);
+		if (!this.plugin.settings.isExcludeTasksWithTags) tagExclude.settingEl.classList.add("is-off");
+		tagExclude.settingEl.classList.add("ical-filter-row");
 
 		new Setting(containerEl)
 			.setName("Ignore completed")
@@ -426,11 +447,18 @@ export class SettingsTab extends PluginSettingTab {
 			.setDesc("Export the .ics file to your vault for local sync workflows.")
 			.addToggle((toggle) =>
 				toggle.setValue(this.plugin.settings.isSaveToFileEnabled).onChange((value) => {
-					this.runAsync(() => this.plugin.updateSettings({ isSaveToFileEnabled: value }));
+					this.runAsync(async () => {
+						await this.plugin.updateSettings({ isSaveToFileEnabled: value });
+						localFileDiv.classList.toggle("is-hidden", !value);
+					});
 				}),
 			);
 
-		new Setting(containerEl)
+		const localFileDiv = containerEl.createDiv({
+			cls: `ical-pro-conditional${this.plugin.settings.isSaveToFileEnabled ? "" : " is-hidden"}`,
+		});
+
+		new Setting(localFileDiv)
 			.setName("Vault storage path")
 			.setDesc("Specify the folder for the local .ics file relative to vault root.")
 			.addText((text) => {
@@ -449,12 +477,17 @@ export class SettingsTab extends PluginSettingTab {
 				toggle.setValue(this.plugin.settings.isSaveToGistEnabled).onChange((value) => {
 					this.runAsync(async () => {
 						await this.plugin.updateSettings({ isSaveToGistEnabled: value });
+						gistDiv.classList.toggle("is-hidden", !value);
 						this.updateUrlDisplay();
 					});
 				}),
 			);
 
-		new Setting(containerEl)
+		const gistDiv = containerEl.createDiv({
+			cls: `ical-pro-conditional${this.plugin.settings.isSaveToGistEnabled ? "" : " is-hidden"}`,
+		});
+
+		new Setting(gistDiv)
 			.setName("GitHub username")
 			.setDesc("Used to build the raw subscription link for your hosted gist.")
 			.addText((text) =>
@@ -466,7 +499,7 @@ export class SettingsTab extends PluginSettingTab {
 				}),
 			);
 
-		new Setting(containerEl)
+		new Setting(gistDiv)
 			.setName("Gist ID")
 			.setDesc(this.createDescriptionWithLink(
 				"Enter the identifier from the gist link used as the sync target. ",
@@ -482,7 +515,7 @@ export class SettingsTab extends PluginSettingTab {
 				}),
 			);
 
-		new Setting(containerEl)
+		new Setting(gistDiv)
 			.setName("Personal access token")
 			.setDesc(this.createDescriptionWithLink(
 				"Personal access token with 'gist' scope. ",
@@ -494,10 +527,10 @@ export class SettingsTab extends PluginSettingTab {
 					this.scheduleUpdate("githubPersonalAccessToken", () =>
 						this.plugin.updateSettings({ githubPersonalAccessToken: value }),
 					);
-				}),
+				}).inputEl.setAttribute("type", "password"),
 			);
 
-		new Setting(containerEl)
+		new Setting(gistDiv)
 			.setName("Validate gist access")
 			.setDesc("Check whether the configured token and identifier are reachable.")
 			.addButton((button) =>
