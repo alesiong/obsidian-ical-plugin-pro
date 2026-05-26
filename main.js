@@ -1919,6 +1919,12 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     this.plugin.settings.sourceRules.forEach((rule, index) => {
       this.renderSourceRuleSetting(rulesContainer, rule, index);
     });
+    if (this.plugin.settings.sourceRules.length === 1 && !this.plugin.settings.sourceRules[0].category) {
+      containerEl.createEl("p", {
+        text: "Currently scanning entire vault with no category. Add rules to assign categories to specific folders for calendar filtering.",
+        cls: "setting-item-description ical-pro-hint"
+      });
+    }
     new import_obsidian4.Setting(containerEl).setName("Add source path").setDesc("Add another path/category rule.").addButton(
       (button) => button.setButtonText("Add path").onClick(() => {
         this.runAsync(async () => {
@@ -1984,15 +1990,18 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
         }
       });
     });
-    new import_obsidian4.Setting(containerEl).setName("Enable native notifications").setDesc("Include alerts in your calendar app. Use the alarm emoji with a minute offset to set a custom reminder.").addToggle(
+    const alarmSetting = new import_obsidian4.Setting(containerEl).setName("Enable native notifications").setDesc("Include alerts in your calendar app. Use the alarm emoji with a minute offset to set a custom reminder.").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.enableAlarms).onChange((value) => {
         this.runAsync(() => this.plugin.updateSettings({ enableAlarms: value }));
+        alarmSetting.settingEl.classList.toggle("is-off", !value);
       })
     ).addSlider(
       (slider) => slider.setLimits(5, 180, 5).setDynamicTooltip().setValue(this.plugin.settings.defaultAlarmOffset).onChange((value) => {
         this.runAsync(() => this.plugin.updateSettings({ defaultAlarmOffset: value }));
       })
     );
+    if (!this.plugin.settings.enableAlarms) alarmSetting.settingEl.classList.add("is-off");
+    alarmSetting.settingEl.classList.add("ical-slider-row");
   }
   renderFilteringSettings(parent) {
     const containerEl = this.addSection(parent, "filter", "Content and filters");
@@ -2187,7 +2196,7 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
   }
   renderAdvancedSettings(parent) {
     const containerEl = this.addSection(parent, "sliders", "Advanced and diagnostics", true);
-    new import_obsidian4.Setting(containerEl).setName("Summary formatting").setDesc("Choose how note links should be rendered in the calendar.").addDropdown((dropdown) => {
+    new import_obsidian4.Setting(containerEl).setName("Summary formatting").setDesc("How [[wikilinks]] in task text appear in the calendar summary. Keep: use explicit display name if set. Prefer: always use note title. Remove: strip links, keep text only.").addDropdown((dropdown) => {
       Object.entries(HOW_TO_PARSE_INTERNAL_LINKS).forEach(([value, label]) => {
         dropdown.addOption(value, label);
       });
@@ -2210,15 +2219,18 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
         }
       });
     });
-    new import_obsidian4.Setting(containerEl).setName("Auto-sync interval").setDesc("Frequency (in minutes) at which the calendar is regenerated and pushed.").addToggle(
+    const autoSyncSetting = new import_obsidian4.Setting(containerEl).setName("Auto-sync interval").setDesc("Frequency (in minutes) at which the calendar is regenerated and pushed.").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.isPeriodicSaveEnabled).onChange((value) => {
         this.runAsync(() => this.plugin.updateSettings({ isPeriodicSaveEnabled: value }, { rescheduleSync: true }));
+        autoSyncSetting.settingEl.classList.toggle("is-off", !value);
       })
     ).addSlider(
       (slider) => slider.setLimits(5, 120, 5).setDynamicTooltip().setValue(this.plugin.settings.periodicSaveInterval).onChange((value) => {
         this.runAsync(() => this.plugin.updateSettings({ periodicSaveInterval: value }, { rescheduleSync: true }));
       })
     );
+    if (!this.plugin.settings.isPeriodicSaveEnabled) autoSyncSetting.settingEl.classList.add("is-off");
+    autoSyncSetting.settingEl.classList.add("ical-slider-row");
     new import_obsidian4.Setting(containerEl).setName("Debug mode").setDesc("Enable verbose logging in the console (Ctrl+Shift+I).").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.isDebug).onChange((value) => {
         this.runAsync(() => this.plugin.updateSettings({ isDebug: value }));

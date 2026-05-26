@@ -13,13 +13,6 @@
     color: var(--text-accent);
 }
 
-.ical-pro-version {
-    font-size: 0.8em;
-    opacity: 0.6;
-    font-family: var(--font-monospace);
-    margin-left: 10px;
-}
-
 .ical-pro-author {
     font-size: 0.85em;
     opacity: 0.8;
@@ -197,6 +190,11 @@
     font-size: 1.1em;
 }
 
+.ical-pro-hint {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
 .ical-pro-source-rules .setting-item,
 .ical-pro-excluded-paths .setting-item {
     background: var(--background-secondary);
@@ -260,6 +258,10 @@
     display: none;
 }
 
+.ical-slider-row.is-off .slider-component {
+    display: none;
+}
+
 .ical-pro-guidance {
     margin-top: 8px;
     padding: 8px 10px;
@@ -277,7 +279,8 @@
 }
 
 /* --- Utility --- */
-.setting-item {
+.ical-pro-section-group .setting-item,
+.ical-pro-status-card .setting-item {
     padding: 12px 0;
     border-top: none;
 }

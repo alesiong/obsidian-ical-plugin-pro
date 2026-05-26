@@ -192,6 +192,13 @@ export class SettingsTab extends PluginSettingTab {
 			this.renderSourceRuleSetting(rulesContainer, rule, index);
 		});
 
+		if (this.plugin.settings.sourceRules.length === 1 && !this.plugin.settings.sourceRules[0].category) {
+			containerEl.createEl("p", {
+				text: "Currently scanning entire vault with no category. Add rules to assign categories to specific folders for calendar filtering.",
+				cls: "setting-item-description ical-pro-hint",
+			});
+		}
+
 		new Setting(containerEl)
 			.setName("Add source path")
 			.setDesc("Add another path/category rule.")
@@ -280,12 +287,13 @@ export class SettingsTab extends PluginSettingTab {
 				});
 			});
 
-		new Setting(containerEl)
+		const alarmSetting = new Setting(containerEl)
 			.setName("Enable native notifications")
 			.setDesc("Include alerts in your calendar app. Use the alarm emoji with a minute offset to set a custom reminder.")
 			.addToggle((toggle) =>
 				toggle.setValue(this.plugin.settings.enableAlarms).onChange((value) => {
 					this.runAsync(() => this.plugin.updateSettings({ enableAlarms: value }));
+					alarmSetting.settingEl.classList.toggle("is-off", !value);
 				}),
 			)
 			.addSlider((slider) =>
@@ -297,6 +305,8 @@ export class SettingsTab extends PluginSettingTab {
 						this.runAsync(() => this.plugin.updateSettings({ defaultAlarmOffset: value }));
 					}),
 			);
+		if (!this.plugin.settings.enableAlarms) alarmSetting.settingEl.classList.add("is-off");
+		alarmSetting.settingEl.classList.add("ical-slider-row");
 	}
 
 	private renderFilteringSettings(parent: HTMLElement): void {
@@ -553,7 +563,7 @@ export class SettingsTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Summary formatting")
-			.setDesc("Choose how note links should be rendered in the calendar.")
+			.setDesc("How [[wikilinks]] in task text appear in the calendar summary. Keep: use explicit display name if set. Prefer: always use note title. Remove: strip links, keep text only.")
 			.addDropdown((dropdown) => {
 				Object.entries(HOW_TO_PARSE_INTERNAL_LINKS).forEach(([value, label]) => {
 					dropdown.addOption(value, label);
@@ -582,12 +592,13 @@ export class SettingsTab extends PluginSettingTab {
 				});
 			});
 
-		new Setting(containerEl)
+		const autoSyncSetting = new Setting(containerEl)
 			.setName("Auto-sync interval")
 			.setDesc("Frequency (in minutes) at which the calendar is regenerated and pushed.")
 			.addToggle((toggle) =>
 				toggle.setValue(this.plugin.settings.isPeriodicSaveEnabled).onChange((value) => {
 					this.runAsync(() => this.plugin.updateSettings({ isPeriodicSaveEnabled: value }, { rescheduleSync: true }));
+					autoSyncSetting.settingEl.classList.toggle("is-off", !value);
 				}),
 			)
 			.addSlider((slider) =>
@@ -599,6 +610,8 @@ export class SettingsTab extends PluginSettingTab {
 						this.runAsync(() => this.plugin.updateSettings({ periodicSaveInterval: value }, { rescheduleSync: true }));
 					}),
 			);
+		if (!this.plugin.settings.isPeriodicSaveEnabled) autoSyncSetting.settingEl.classList.add("is-off");
+		autoSyncSetting.settingEl.classList.add("ical-slider-row");
 
 
 		new Setting(containerEl)
