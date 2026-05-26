@@ -8,7 +8,7 @@
     padding-bottom: 10px;
 }
 
-.ical-pro-header h2 {
+.ical-pro-header h3 {
     margin: 0;
     color: var(--text-accent);
 }
@@ -101,14 +101,15 @@
 }
 
 .ical-status-success { color: var(--text-success); font-weight: bold; }
+.ical-status-partial { color: var(--text-warning); font-weight: bold; }
 .ical-status-failed { color: var(--text-error); font-weight: bold; }
 .ical-sync-time { font-size: 0.85em; opacity: 0.7; margin-top: 4px; }
-.ical-sync-error { 
-    font-size: 0.75em; 
-    color: var(--text-error); 
-    margin-top: 4px; 
+.ical-sync-error {
+    font-size: 0.75em;
+    color: var(--text-error);
+    margin-top: 4px;
     word-break: break-all;
-    background: rgba(var(--text-error-rgb), 0.1);
+    background: var(--background-modifier-error);
     padding: 4px;
     border-radius: 4px;
 }
@@ -143,16 +144,6 @@
 .ical-pro-section-header h3 {
     margin: 0;
     font-size: 1.1em;
-}
-
-.ical-pro-logic-tip {
-    font-size: 0.85em;
-    color: var(--text-accent);
-    background-color: var(--background-secondary-alt);
-    padding: 6px 10px;
-    border-radius: 4px;
-    margin: -5px 0 15px 0;
-    display: inline-block;
 }
 
 .ical-pro-support {
