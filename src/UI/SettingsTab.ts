@@ -31,6 +31,7 @@ function isLinkPlacement(value: string): value is LinkPlacement {
 
 export class SettingsTab extends PluginSettingTab {
 	private readonly pendingUpdates = new Map<string, number>();
+	private readonly collapsedSections = new Set<string>();
 
 	constructor(app: App, private readonly plugin: ObsidianIcalPlugin) {
 		super(app, plugin);
@@ -68,7 +69,7 @@ export class SettingsTab extends PluginSettingTab {
 	}
 
 	private renderSupportSection(parent: HTMLElement): void {
-		const containerEl = this.addSection(parent, "heart", "Support the project");
+		const containerEl = this.addSection(parent, "support", "heart", "Support the project");
 
 		const supportDiv = containerEl.createDiv({ cls: "ical-pro-support" });
 		supportDiv.createEl("p", {
@@ -88,8 +89,19 @@ export class SettingsTab extends PluginSettingTab {
 		});
 	}
 
+	private refreshStatusCard(): void {
+		const existing = this.containerEl.querySelector(".ical-pro-status-card");
+		if (!existing) return;
+		existing.empty();
+		this.renderStatusCardContent(existing as HTMLElement);
+	}
+
 	private renderStatusCard(containerEl: HTMLElement): void {
 		const statusCard = containerEl.createDiv({ cls: "ical-pro-status-card" });
+		this.renderStatusCardContent(statusCard);
+	}
+
+	private renderStatusCardContent(statusCard: HTMLElement): void {
 		const statusGrid = statusCard.createDiv({ cls: "ical-pro-status-grid" });
 
 		const urlCol = statusGrid.createDiv({ cls: "ical-pro-status-col" });
@@ -168,7 +180,7 @@ export class SettingsTab extends PluginSettingTab {
 				} catch {
 					new Notice(`iCal Pro: sync failed. ${this.plugin.lastSyncMessage}`);
 				} finally {
-					this.display();
+					this.refreshStatusCard();
 				}
 			});
 		});
@@ -180,7 +192,7 @@ export class SettingsTab extends PluginSettingTab {
 	}
 
 	private renderTaskSourceSettings(parent: HTMLElement): void {
-		const containerEl = this.addSection(parent, "search", "Scope and discovery");
+		const containerEl = this.addSection(parent, "scope", "search", "Scope and discovery");
 
 		containerEl.createEl("p", {
 			text: "Bind one source path to one category. Use multiple rules when you want different folders exported as different calendar categories.",
@@ -245,7 +257,7 @@ export class SettingsTab extends PluginSettingTab {
 	}
 
 	private renderDateSettings(parent: HTMLElement): void {
-		const containerEl = this.addSection(parent, "calendar-days", "Scheduling and alarms");
+		const containerEl = this.addSection(parent, "scheduling", "calendar-days", "Scheduling and alarms");
 
 		new Setting(containerEl)
 			.setName("Time-block logic (day planner)")
@@ -310,7 +322,7 @@ export class SettingsTab extends PluginSettingTab {
 	}
 
 	private renderFilteringSettings(parent: HTMLElement): void {
-		const containerEl = this.addSection(parent, "filter", "Content and filters");
+		const containerEl = this.addSection(parent, "filtering", "filter", "Content and filters");
 
 		const globalFilter = new Setting(containerEl)
 			.setName("Respect tasks global filter")
@@ -439,7 +451,7 @@ export class SettingsTab extends PluginSettingTab {
 	}
 
 	private renderDestinationSettings(parent: HTMLElement): void {
-		const containerEl = this.addSection(parent, "cloud", "Sync and cloud connectivity");
+		const containerEl = this.addSection(parent, "destination", "cloud", "Sync and cloud connectivity");
 
 		new Setting(containerEl)
 			.setName("Calendar filename")
@@ -559,7 +571,7 @@ export class SettingsTab extends PluginSettingTab {
 	}
 
 	private renderAdvancedSettings(parent: HTMLElement): void {
-		const containerEl = this.addSection(parent, "sliders", "Advanced and diagnostics", true);
+		const containerEl = this.addSection(parent, "advanced", "sliders", "Advanced and diagnostics", true);
 
 		new Setting(containerEl)
 			.setName("Summary formatting")
@@ -629,8 +641,9 @@ export class SettingsTab extends PluginSettingTab {
 		});
 	}
 
-	private addSection(el: HTMLElement, icon: string, text: string, collapsed = false): HTMLElement {
-		const group = el.createDiv({ cls: `ical-pro-section-group${collapsed ? " is-collapsed" : ""}` });
+	private addSection(el: HTMLElement, key: string, icon: string, text: string, defaultCollapsed = false): HTMLElement {
+		const isCollapsed = this.collapsedSections.has(key) || (defaultCollapsed && !this.collapsedSections.has(`_${key}`));
+		const group = el.createDiv({ cls: `ical-pro-section-group${isCollapsed ? " is-collapsed" : ""}` });
 		const header = group.createDiv({ cls: "ical-pro-section-header" });
 		const iconEl = header.createDiv({ cls: "ical-pro-section-icon" });
 		setIcon(iconEl, icon);
@@ -639,7 +652,14 @@ export class SettingsTab extends PluginSettingTab {
 		setIcon(indicator, "chevron-down");
 		heading.settingEl.onClickEvent((e) => {
 			if ((e.target as HTMLElement).closest(".setting-item-control")) return;
-			group.classList.toggle("is-collapsed");
+			const nowCollapsed = group.classList.toggle("is-collapsed");
+			if (nowCollapsed) {
+				this.collapsedSections.add(key);
+				this.collapsedSections.delete(`_${key}`);
+			} else {
+				this.collapsedSections.delete(key);
+				this.collapsedSections.add(`_${key}`);
+			}
 		});
 		return group;
 	}
@@ -714,8 +734,11 @@ export class SettingsTab extends PluginSettingTab {
 	}
 
 	private renderSourceRuleSetting(containerEl: HTMLElement, rule: TaskSourceRule, index: number): void {
+		const ruleName = rule.category
+			? `${rule.path}  →  ${rule.category}`
+			: rule.path || `Source path ${index + 1}`;
 		new Setting(containerEl)
-			.setName(`Source path ${index + 1}`)
+			.setName(ruleName)
 			.setDesc("Tasks in this path inherit the configured category.")
 			.addText((text) => {
 				new FolderSuggest(this.app, text.inputEl);
@@ -755,7 +778,7 @@ export class SettingsTab extends PluginSettingTab {
 
 	private renderExcludedPathSetting(containerEl: HTMLElement, path: string, index: number): void {
 		new Setting(containerEl)
-			.setName(`Excluded path ${index + 1}`)
+			.setName(path || `Excluded path ${index + 1}`)
 			.addText((text) => {
 				new FolderSuggest(this.app, text.inputEl);
 				text

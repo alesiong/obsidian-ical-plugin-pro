@@ -1784,6 +1784,7 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     super(app, plugin);
     __publicField(this, "plugin", plugin);
     __publicField(this, "pendingUpdates", /* @__PURE__ */ new Map());
+    __publicField(this, "collapsedSections", /* @__PURE__ */ new Set());
   }
   display() {
     const { containerEl } = this;
@@ -1813,7 +1814,7 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     this.renderSupportSection(containerEl);
   }
   renderSupportSection(parent) {
-    const containerEl = this.addSection(parent, "heart", "Support the project");
+    const containerEl = this.addSection(parent, "support", "heart", "Support the project");
     const supportDiv = containerEl.createDiv({ cls: "ical-pro-support" });
     supportDiv.createEl("p", {
       text: "If this plugin helps you stay organized, consider supporting its development.",
@@ -1830,8 +1831,17 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
       cls: "ical-pro-kofi-img"
     });
   }
+  refreshStatusCard() {
+    const existing = this.containerEl.querySelector(".ical-pro-status-card");
+    if (!existing) return;
+    existing.empty();
+    this.renderStatusCardContent(existing);
+  }
   renderStatusCard(containerEl) {
     const statusCard = containerEl.createDiv({ cls: "ical-pro-status-card" });
+    this.renderStatusCardContent(statusCard);
+  }
+  renderStatusCardContent(statusCard) {
     const statusGrid = statusCard.createDiv({ cls: "ical-pro-status-grid" });
     const urlCol = statusGrid.createDiv({ cls: "ical-pro-status-col" });
     const statusTitle = urlCol.createDiv({ cls: "ical-pro-card-title" });
@@ -1899,7 +1909,7 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
         } catch (e) {
           new import_obsidian4.Notice(`iCal Pro: sync failed. ${this.plugin.lastSyncMessage}`);
         } finally {
-          this.display();
+          this.refreshStatusCard();
         }
       });
     });
@@ -1910,7 +1920,7 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     });
   }
   renderTaskSourceSettings(parent) {
-    const containerEl = this.addSection(parent, "search", "Scope and discovery");
+    const containerEl = this.addSection(parent, "scope", "search", "Scope and discovery");
     containerEl.createEl("p", {
       text: "Bind one source path to one category. Use multiple rules when you want different folders exported as different calendar categories.",
       cls: "setting-item-description"
@@ -1961,7 +1971,7 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     );
   }
   renderDateSettings(parent) {
-    const containerEl = this.addSection(parent, "calendar-days", "Scheduling and alarms");
+    const containerEl = this.addSection(parent, "scheduling", "calendar-days", "Scheduling and alarms");
     new import_obsidian4.Setting(containerEl).setName("Time-block logic (day planner)").setDesc("If enabled, treats daily note headings as dates and task times as event start points.").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.isDayPlannerPluginFormatEnabled).onChange((value) => {
         this.runAsync(() => this.plugin.updateSettings(
@@ -2004,7 +2014,7 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     alarmSetting.settingEl.classList.add("ical-slider-row");
   }
   renderFilteringSettings(parent) {
-    const containerEl = this.addSection(parent, "filter", "Content and filters");
+    const containerEl = this.addSection(parent, "filtering", "filter", "Content and filters");
     const globalFilter = new import_obsidian4.Setting(containerEl).setName("Respect tasks global filter").setDesc("Only treat checkboxes as tasks if they contain one of these tags. Matches the Obsidian Tasks plugin global filter.").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.respectGlobalTaskFilter).onChange((value) => {
         this.runAsync(() => this.plugin.updateSettings({ respectGlobalTaskFilter: value }, { rebuildIndex: true }));
@@ -2108,7 +2118,7 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     );
   }
   renderDestinationSettings(parent) {
-    const containerEl = this.addSection(parent, "cloud", "Sync and cloud connectivity");
+    const containerEl = this.addSection(parent, "destination", "cloud", "Sync and cloud connectivity");
     new import_obsidian4.Setting(containerEl).setName("Calendar filename").setDesc("Used for both local storage and hosted gist sync, for example calendar.ics.").addText(
       (text) => text.setPlaceholder("Calendar.ics").setValue(this.plugin.settings.filename).onChange((value) => {
         this.scheduleUpdate("filename", async () => {
@@ -2195,7 +2205,7 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     );
   }
   renderAdvancedSettings(parent) {
-    const containerEl = this.addSection(parent, "sliders", "Advanced and diagnostics", true);
+    const containerEl = this.addSection(parent, "advanced", "sliders", "Advanced and diagnostics", true);
     new import_obsidian4.Setting(containerEl).setName("Summary formatting").setDesc("How [[wikilinks]] in task text appear in the calendar summary. Keep: use explicit display name if set. Prefer: always use note title. Remove: strip links, keep text only.").addDropdown((dropdown) => {
       Object.entries(HOW_TO_PARSE_INTERNAL_LINKS).forEach(([value, label]) => {
         dropdown.addOption(value, label);
@@ -2241,8 +2251,9 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
       cls: "setting-item-description"
     });
   }
-  addSection(el, icon, text, collapsed = false) {
-    const group = el.createDiv({ cls: `ical-pro-section-group${collapsed ? " is-collapsed" : ""}` });
+  addSection(el, key, icon, text, defaultCollapsed = false) {
+    const isCollapsed = this.collapsedSections.has(key) || defaultCollapsed && !this.collapsedSections.has(`_${key}`);
+    const group = el.createDiv({ cls: `ical-pro-section-group${isCollapsed ? " is-collapsed" : ""}` });
     const header = group.createDiv({ cls: "ical-pro-section-header" });
     const iconEl = header.createDiv({ cls: "ical-pro-section-icon" });
     (0, import_obsidian4.setIcon)(iconEl, icon);
@@ -2251,7 +2262,14 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     (0, import_obsidian4.setIcon)(indicator, "chevron-down");
     heading.settingEl.onClickEvent((e) => {
       if (e.target.closest(".setting-item-control")) return;
-      group.classList.toggle("is-collapsed");
+      const nowCollapsed = group.classList.toggle("is-collapsed");
+      if (nowCollapsed) {
+        this.collapsedSections.add(key);
+        this.collapsedSections.delete(`_${key}`);
+      } else {
+        this.collapsedSections.delete(key);
+        this.collapsedSections.add(`_${key}`);
+      }
     });
     return group;
   }
@@ -2310,7 +2328,8 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     return fragment;
   }
   renderSourceRuleSetting(containerEl, rule, index) {
-    new import_obsidian4.Setting(containerEl).setName(`Source path ${index + 1}`).setDesc("Tasks in this path inherit the configured category.").addText((text) => {
+    const ruleName = rule.category ? `${rule.path}  \u2192  ${rule.category}` : rule.path || `Source path ${index + 1}`;
+    new import_obsidian4.Setting(containerEl).setName(ruleName).setDesc("Tasks in this path inherit the configured category.").addText((text) => {
       new FolderSuggest(this.app, text.inputEl);
       text.setPlaceholder("/").setValue(rule.path).onChange((value) => {
         this.scheduleSourceRuleUpdate(index, { path: (0, import_obsidian4.normalizePath)(value) || "/" });
@@ -2335,7 +2354,7 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     );
   }
   renderExcludedPathSetting(containerEl, path, index) {
-    new import_obsidian4.Setting(containerEl).setName(`Excluded path ${index + 1}`).addText((text) => {
+    new import_obsidian4.Setting(containerEl).setName(path || `Excluded path ${index + 1}`).addText((text) => {
       new FolderSuggest(this.app, text.inputEl);
       text.setPlaceholder("/").setValue(path).onChange((value) => {
         this.scheduleExcludedPathUpdate(index, (0, import_obsidian4.normalizePath)(value) || "/");
