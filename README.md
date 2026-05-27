@@ -12,7 +12,7 @@ Manage your tasks in Markdown and expose them to Google Calendar, Apple Calendar
 
 ---
 
-## 🔒 Privacy & Security
+## Privacy & Security
 
 iCal Pro is built with a local-first philosophy.
 - **No Data Collection**: We do not track your usage or collect any personal data.
@@ -68,19 +68,33 @@ Client support for `VTODO` varies. Apple-oriented ecosystems usually handle `VTO
 
 ## Getting Started
 
-1. Install with [BRAT](https://github.com/TfTHacker/obsidian42-brat) using `liuh886/obsidian-ical-plugin-pro`
-2. Open the `iCal Pro` settings tab
-3. Add at least one source path rule
-4. Enable at least one destination:
+### Install
+
+**Community Plugins (recommended):**
+1. Open Obsidian Settings > Community Plugins > Browse
+2. Search for "iCal Pro"
+3. Click Install, then Enable
+
+Or install directly: [Obsidian Community Plugins - iCal Pro](https://community.obsidian.md/plugins/ical-plugin-pro)
+
+**BRAT (beta):**
+1. Install [BRAT](https://github.com/TfTHacker/obsidian42-brat)
+2. Add `liuh886/obsidian-ical-plugin-pro` as a beta plugin
+
+### Configure
+
+1. Open the `iCal Pro` settings tab
+2. Add at least one source path rule
+3. Enable at least one destination:
    - local vault file export
    - [GitHub Gist sync](https://gist.github.com/)
-5. If you use GitHub Gist sync:
+4. If you use GitHub Gist sync:
    - Create a secret Gist at [gist.github.com](https://gist.github.com/) and keep the generated `.ics` file there.
    - Copy the Gist ID from the Gist URL. In `https://gist.github.com/username/gist-id`, the final segment is the Gist ID.
    - Generate a [GitHub personal access token](https://github.com/settings/tokens/new?scopes=gist&description=iCal%20Pro%20Gist%20sync) with only the `gist` scope selected. A classic PAT is recommended for this workflow.
    - Fill in your GitHub username, Gist ID, and PAT in iCal Pro, then click `Validate`.
-6. Click `Sync Now`
-7. Subscribe to the generated raw Gist URL or local `.ics` file
+5. Click `Sync Now`
+6. Subscribe to the generated raw Gist URL or local `.ics` file
 
 ## Debugging & Logs
 
