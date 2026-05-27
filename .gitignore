@@ -19,7 +19,8 @@ TASKS.md
 DESIGN.md
 
 # Scripts & Tooling (local only)
-scripts/
+scripts/*
+!scripts/smoke-tests.ts
 
 # Editor config
 .vscode/
