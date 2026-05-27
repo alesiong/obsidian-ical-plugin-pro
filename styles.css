@@ -165,14 +165,14 @@
     width: 100%;
 }
 
-.ical-sync-success {
-    color: var(--text-success) !important;
-    border-color: var(--text-success) !important;
+button.mod-cta.ical-sync-success {
+    color: var(--text-success);
+    border-color: var(--text-success);
 }
 
-.ical-sync-fail {
-    color: var(--text-error) !important;
-    border-color: var(--text-error) !important;
+button.mod-cta.ical-sync-fail {
+    color: var(--text-error);
+    border-color: var(--text-error);
 }
 
 /* --- Section Headers --- */
