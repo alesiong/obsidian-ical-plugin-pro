@@ -37,6 +37,13 @@ export class SettingsTab extends PluginSettingTab {
 		super(app, plugin);
 	}
 
+	hide(): void {
+		for (const timeoutId of this.pendingUpdates.values()) {
+			window.clearTimeout(timeoutId);
+		}
+		this.pendingUpdates.clear();
+	}
+
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
@@ -721,7 +728,10 @@ export class SettingsTab extends PluginSettingTab {
 	}
 
 	private runAsync(task: () => Promise<void>): void {
-		void task();
+		task().catch((error) => {
+			console.error("iCal Pro settings error:", error);
+			new Notice(`iCal Pro: ${error instanceof Error ? error.message : "Unexpected error"}`);
+		});
 	}
 
 	private createDescriptionWithLink(prefix: string, linkText: string, href: string): DocumentFragment {
@@ -742,7 +752,7 @@ export class SettingsTab extends PluginSettingTab {
 		const ruleName = rule.category
 			? `${rule.path}  →  ${rule.category}`
 			: rule.path || `Source path ${index + 1}`;
-		new Setting(containerEl)
+		const setting = new Setting(containerEl)
 			.setName(ruleName)
 			.setDesc("Tasks in this path inherit the configured category.")
 			.addText((text) => {
@@ -763,7 +773,20 @@ export class SettingsTab extends PluginSettingTab {
 					.onChange((value) => {
 						this.scheduleSourceRuleUpdate(index, { category: value });
 					});
-			})
+			});
+
+		const nameEl = setting.settingEl.querySelector(".setting-item-name") as HTMLElement | null;
+		const inputs = setting.settingEl.querySelectorAll("input[type='text'], input:not([type])") as NodeListOf<HTMLInputElement>;
+		if (nameEl && inputs.length >= 2) {
+			const updateName = () => {
+				const path = inputs[0].value;
+				const category = inputs[1].value;
+				nameEl.textContent = category ? `${path}  →  ${category}` : path || `Source path ${index + 1}`;
+			};
+			inputs[0].addEventListener("input", updateName);
+			inputs[1].addEventListener("input", updateName);
+		}
+		setting
 			.addExtraButton((button) =>
 				button
 					.setIcon("trash")

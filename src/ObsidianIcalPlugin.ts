@@ -35,6 +35,7 @@ export default class ObsidianIcalPlugin extends Plugin {
 
 	private readonly settingsStore = new PluginSettingsStore(this);
 	private readonly syncReadinessService = new SyncReadinessService();
+	private readonly destinationHealthService = new DestinationHealthService();
 	private readonly connectionValidationService = new ConnectionValidationService(requestUrl);
 	private readonly syncAutomationService = new SyncAutomationService(this.syncReadinessService);
 	private readonly diagnosticsService = new DiagnosticsService();
@@ -199,7 +200,7 @@ export default class ObsidianIcalPlugin extends Plugin {
 	}
 
 	public getRecommendedNextStep(): string {
-		const report = new DestinationHealthService().evaluate(this.settings);
+		const report = this.destinationHealthService.evaluate(this.settings);
 		return report.recommendedNextStep;
 	}
 

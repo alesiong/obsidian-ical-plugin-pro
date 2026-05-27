@@ -1807,6 +1807,12 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     __publicField(this, "pendingUpdates", /* @__PURE__ */ new Map());
     __publicField(this, "collapsedSections", /* @__PURE__ */ new Set());
   }
+  hide() {
+    for (const timeoutId of this.pendingUpdates.values()) {
+      window.clearTimeout(timeoutId);
+    }
+    this.pendingUpdates.clear();
+  }
   display() {
     const { containerEl } = this;
     containerEl.empty();
@@ -2340,7 +2346,10 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     this.pendingUpdates.set(key, timeoutId);
   }
   runAsync(task) {
-    void task();
+    task().catch((error) => {
+      console.error("iCal Pro settings error:", error);
+      new import_obsidian4.Notice(`iCal Pro: ${error instanceof Error ? error.message : "Unexpected error"}`);
+    });
   }
   createDescriptionWithLink(prefix, linkText, href) {
     const fragment = document.createDocumentFragment();
@@ -2355,7 +2364,7 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
   }
   renderSourceRuleSetting(containerEl, rule, index) {
     const ruleName = rule.category ? `${rule.path}  \u2192  ${rule.category}` : rule.path || `Source path ${index + 1}`;
-    new import_obsidian4.Setting(containerEl).setName(ruleName).setDesc("Tasks in this path inherit the configured category.").addText((text) => {
+    const setting = new import_obsidian4.Setting(containerEl).setName(ruleName).setDesc("Tasks in this path inherit the configured category.").addText((text) => {
       new FolderSuggest(this.app, text.inputEl);
       text.setPlaceholder("/").setValue(rule.path).onChange((value) => {
         this.scheduleSourceRuleUpdate(index, { path: (0, import_obsidian4.normalizePath)(value) || "/" });
@@ -2366,7 +2375,19 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
       text.setPlaceholder("Work").setValue(rule.category).onChange((value) => {
         this.scheduleSourceRuleUpdate(index, { category: value });
       });
-    }).addExtraButton(
+    });
+    const nameEl = setting.settingEl.querySelector(".setting-item-name");
+    const inputs = setting.settingEl.querySelectorAll("input[type='text'], input:not([type])");
+    if (nameEl && inputs.length >= 2) {
+      const updateName = () => {
+        const path = inputs[0].value;
+        const category = inputs[1].value;
+        nameEl.textContent = category ? `${path}  \u2192  ${category}` : path || `Source path ${index + 1}`;
+      };
+      inputs[0].addEventListener("input", updateName);
+      inputs[1].addEventListener("input", updateName);
+    }
+    setting.addExtraButton(
       (button) => button.setIcon("trash").setTooltip("Remove path rule").onClick(() => {
         this.runAsync(async () => {
           const sourceRules = this.plugin.settings.sourceRules.filter((_, ruleIndex) => ruleIndex !== index);
@@ -2445,6 +2466,7 @@ var ObsidianIcalPlugin = class extends import_obsidian5.Plugin {
     __publicField(this, "pendingFileUpdates", /* @__PURE__ */ new Map());
     __publicField(this, "settingsStore", new PluginSettingsStore(this));
     __publicField(this, "syncReadinessService", new SyncReadinessService());
+    __publicField(this, "destinationHealthService", new DestinationHealthService());
     __publicField(this, "connectionValidationService", new ConnectionValidationService(import_obsidian5.requestUrl));
     __publicField(this, "syncAutomationService", new SyncAutomationService(this.syncReadinessService));
     __publicField(this, "diagnosticsService", new DiagnosticsService());
@@ -2589,7 +2611,7 @@ var ObsidianIcalPlugin = class extends import_obsidian5.Plugin {
     return this.syncReadinessService.evaluate(this.settings);
   }
   getRecommendedNextStep() {
-    const report = new DestinationHealthService().evaluate(this.settings);
+    const report = this.destinationHealthService.evaluate(this.settings);
     return report.recommendedNextStep;
   }
   getSyncPreview() {

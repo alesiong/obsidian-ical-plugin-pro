@@ -257,10 +257,6 @@
 }
 
 /* --- Conditional visibility --- */
-.ical-pro-conditional {
-    transition: opacity 0.15s ease;
-}
-
 .ical-pro-conditional.is-hidden {
     display: none;
 }
