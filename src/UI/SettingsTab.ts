@@ -776,7 +776,7 @@ export class SettingsTab extends PluginSettingTab {
 			});
 
 		const nameEl = setting.settingEl.querySelector(".setting-item-name") as HTMLElement | null;
-		const inputs = setting.settingEl.querySelectorAll("input[type='text'], input:not([type])") as NodeListOf<HTMLInputElement>;
+		const inputs = setting.settingEl.querySelectorAll<HTMLInputElement>("input[type='text'], input:not([type])");
 		if (nameEl && inputs.length >= 2) {
 			const updateName = () => {
 				const path = inputs[0].value;
