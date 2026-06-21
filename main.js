@@ -1750,6 +1750,8 @@ var import_obsidian8 = require("obsidian");
 // src/UI/Settings/StatusCard.ts
 var import_obsidian3 = require("obsidian");
 function renderSetupChecklist(ctx, containerEl) {
+  const existing = containerEl.querySelector(".ical-pro-checklist");
+  if (existing) existing.remove();
   const { plugin } = ctx;
   const s = plugin.settings;
   const hasDestination = s.isSaveToFileEnabled || s.isSaveToGistEnabled && !!s.githubUsername && !!s.githubGistId && !!s.githubPersonalAccessToken;
@@ -1766,10 +1768,13 @@ function renderSetupChecklist(ctx, containerEl) {
   const card = containerEl.createDiv({ cls: "ical-pro-checklist" });
   card.createEl("div", { text: "Getting started", cls: "ical-pro-checklist-title" });
   steps.forEach((step) => {
-    const row = card.createDiv({ cls: "ical-pro-checklist-item" });
+    const row = card.createDiv({ cls: `ical-pro-checklist-item${step.done ? " is-done" : ""}` });
     (0, import_obsidian3.setIcon)(row, step.done ? "check-circle" : "circle");
     row.createSpan({ text: step.label, cls: step.done ? "ical-pro-checklist-done" : "" });
   });
+}
+function refreshSetupChecklist(ctx, containerEl) {
+  renderSetupChecklist(ctx, containerEl);
 }
 function renderStatusCard(ctx, containerEl) {
   const statusCard = containerEl.createDiv({ cls: "ical-pro-status-card" });
@@ -1859,6 +1864,7 @@ function renderStatusCardContent(ctx, statusCard, outerContainer) {
           syncBtn.setText("Sync now");
           syncBtn.removeClass("ical-sync-success", "ical-sync-fail");
           refreshStatusCard(ctx, outerContainer);
+          refreshSetupChecklist(ctx, outerContainer);
         }, 1500);
       }
     });
@@ -2005,6 +2011,8 @@ function renderDestinationSettings(ctx, containerEl) {
       runAsync(async () => {
         await plugin.updateSettings({ isSaveToFileEnabled: value });
         localFileDiv.classList.toggle("is-hidden", !value);
+        updateUrlDisplay(ctx, containerEl);
+        refreshSetupChecklist(ctx, containerEl);
       });
     })
   );
@@ -2014,10 +2022,10 @@ function renderDestinationSettings(ctx, containerEl) {
   new import_obsidian4.Setting(localFileDiv).setName("Vault storage path").setDesc("Specify the folder for the local .ics file relative to vault root.").addText((text) => {
     new FolderSuggest(plugin.app, text.inputEl);
     text.setValue(plugin.settings.savePath).onChange((value) => {
-      scheduleUpdate(
-        "savePath",
-        () => plugin.updateSettings({ savePath: (0, import_obsidian6.normalizePath)(value) || "/" })
-      );
+      scheduleUpdate("savePath", async () => {
+        await plugin.updateSettings({ savePath: (0, import_obsidian6.normalizePath)(value) || "/" });
+        updateUrlDisplay(ctx, containerEl);
+      });
     });
   });
   new import_obsidian4.Setting(body).setName("Sync to hosted gist").setDesc("Publish your calendar to a private gist for subscriptions across devices.").addToggle(
@@ -2026,6 +2034,7 @@ function renderDestinationSettings(ctx, containerEl) {
         await plugin.updateSettings({ isSaveToGistEnabled: value });
         gistDiv.classList.toggle("is-hidden", !value);
         updateUrlDisplay(ctx, containerEl);
+        refreshSetupChecklist(ctx, containerEl);
       });
     })
   );

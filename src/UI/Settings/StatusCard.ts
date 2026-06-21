@@ -2,6 +2,10 @@ import { Notice, setIcon } from "obsidian";
 import type { SectionContext } from "./SectionContext";
 
 export function renderSetupChecklist(ctx: SectionContext, containerEl: HTMLElement): void {
+	// Remove any existing checklist before rendering a fresh one
+	const existing = containerEl.querySelector(".ical-pro-checklist");
+	if (existing) existing.remove();
+
 	const { plugin } = ctx;
 	const s = plugin.settings;
 
@@ -23,10 +27,14 @@ export function renderSetupChecklist(ctx: SectionContext, containerEl: HTMLEleme
 	card.createEl("div", { text: "Getting started", cls: "ical-pro-checklist-title" });
 
 	steps.forEach(step => {
-		const row = card.createDiv({ cls: "ical-pro-checklist-item" });
+		const row = card.createDiv({ cls: `ical-pro-checklist-item${step.done ? " is-done" : ""}` });
 		setIcon(row, step.done ? "check-circle" : "circle");
 		row.createSpan({ text: step.label, cls: step.done ? "ical-pro-checklist-done" : "" });
 	});
+}
+
+export function refreshSetupChecklist(ctx: SectionContext, containerEl: HTMLElement): void {
+	renderSetupChecklist(ctx, containerEl);
 }
 
 export function renderStatusCard(ctx: SectionContext, containerEl: HTMLElement): void {
@@ -126,6 +134,7 @@ function renderStatusCardContent(ctx: SectionContext, statusCard: HTMLElement, o
 					syncBtn.setText("Sync now");
 					syncBtn.removeClass("ical-sync-success", "ical-sync-fail");
 					refreshStatusCard(ctx, outerContainer);
+					refreshSetupChecklist(ctx, outerContainer);
 				}, 1500);
 			}
 		});

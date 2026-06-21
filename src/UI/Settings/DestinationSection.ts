@@ -2,7 +2,7 @@ import { Notice, normalizePath } from "obsidian";
 import type { SectionContext } from "./SectionContext";
 import { Setting, createDescriptionWithLink } from "./SectionContext";
 import { FolderSuggest } from "../FolderSuggest";
-import { updateUrlDisplay } from "./StatusCard";
+import { refreshSetupChecklist, updateUrlDisplay } from "./StatusCard";
 
 export function renderDestinationSettings(ctx: SectionContext, containerEl: HTMLElement): void {
 	const { plugin, scheduleUpdate, runAsync, addSection } = ctx;
@@ -30,6 +30,8 @@ export function renderDestinationSettings(ctx: SectionContext, containerEl: HTML
 				runAsync(async () => {
 					await plugin.updateSettings({ isSaveToFileEnabled: value });
 					localFileDiv.classList.toggle("is-hidden", !value);
+					updateUrlDisplay(ctx, containerEl);
+					refreshSetupChecklist(ctx, containerEl);
 				});
 			}),
 		);
@@ -44,9 +46,10 @@ export function renderDestinationSettings(ctx: SectionContext, containerEl: HTML
 		.addText((text) => {
 			new FolderSuggest(plugin.app, text.inputEl);
 			text.setValue(plugin.settings.savePath).onChange((value) => {
-				scheduleUpdate("savePath", () =>
-					plugin.updateSettings({ savePath: normalizePath(value) || "/" }),
-				);
+				scheduleUpdate("savePath", async () => {
+					await plugin.updateSettings({ savePath: normalizePath(value) || "/" });
+					updateUrlDisplay(ctx, containerEl);
+				});
 			});
 		});
 
@@ -59,6 +62,7 @@ export function renderDestinationSettings(ctx: SectionContext, containerEl: HTML
 					await plugin.updateSettings({ isSaveToGistEnabled: value });
 					gistDiv.classList.toggle("is-hidden", !value);
 					updateUrlDisplay(ctx, containerEl);
+					refreshSetupChecklist(ctx, containerEl);
 				});
 			}),
 		);

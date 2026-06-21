@@ -324,7 +324,7 @@ button.mod-cta.ical-sync-fail {
     color: var(--text-muted);
 }
 
-.ical-pro-checklist-item:first-of-type svg {
+.ical-pro-checklist-item.is-done svg {
     color: var(--text-success);
 }
 
