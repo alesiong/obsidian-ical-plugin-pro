@@ -1,4 +1,5 @@
 import { App, Notice, Setting, setIcon } from "obsidian";
+import { activeDocument } from "../../activeDocumentShim";
 import ObsidianIcalPlugin from "../../ObsidianIcalPlugin";
 
 export interface SectionContext {
@@ -11,10 +12,10 @@ export interface SectionContext {
 }
 
 export function createDescriptionWithLink(prefix: string, linkText: string, href: string): DocumentFragment {
-	const fragment = document.createDocumentFragment();
+	const fragment = activeDocument.createDocumentFragment();
 	fragment.append(prefix);
 
-	const link = document.createElement("a");
+	const link = activeDocument.createElement("a");
 	link.href = href;
 	link.textContent = linkText;
 	link.target = "_blank";

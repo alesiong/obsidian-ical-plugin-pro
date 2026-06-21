@@ -71,7 +71,7 @@ export class SettingsTab extends PluginSettingTab {
 		const header = group.createDiv({ cls: "ical-pro-section-header" });
 		const iconEl = header.createDiv({ cls: "ical-pro-section-icon" });
 		setIcon(iconEl, icon);
-		header.createEl("h3", { text, cls: "ical-pro-section-title" });
+		new Setting(header).setName(text).setHeading();
 		const indicator = header.createSpan({ cls: "collapse-indicator" });
 		setIcon(indicator, "chevron-down");
 		header.onClickEvent((e) => {

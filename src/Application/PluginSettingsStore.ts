@@ -13,11 +13,18 @@ export interface SyncHistoryEntry {
 	destinationResults: DestinationSyncResult[];
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export class PluginSettingsStore {
 	constructor(private readonly plugin: Plugin) {}
 
 	public async load(): Promise<Record<string, unknown> | null> {
-		return await this.plugin.loadData();
+		const raw: unknown = await this.plugin.loadData();
+		if (raw === undefined || raw === null) return null;
+		if (!isRecord(raw)) return null;
+		return raw;
 	}
 
 	public loadTaskIdentityState(raw: Record<string, unknown> | null): TaskIdentityState {

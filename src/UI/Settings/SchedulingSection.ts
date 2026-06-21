@@ -73,7 +73,6 @@ export function renderDateSettings(ctx: SectionContext, containerEl: HTMLElement
 		.addSlider((slider) =>
 			slider
 				.setLimits(5, 180, 5)
-				.setDynamicTooltip()
 				.setValue(plugin.settings.defaultAlarmOffset)
 				.onChange((value) => {
 					runAsync(() => plugin.updateSettings({ defaultAlarmOffset: value }));

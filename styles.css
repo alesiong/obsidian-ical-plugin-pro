@@ -199,11 +199,11 @@ button.mod-cta.ical-sync-fail {
     color: var(--text-accent);
 }
 
-.ical-pro-section-title {
-    margin: 0;
-    font-size: 1.1em;
+.ical-pro-section-header .setting-item {
     flex: 1;
     min-width: 0;
+    padding: 0;
+    border: none;
 }
 
 .ical-pro-hint {
