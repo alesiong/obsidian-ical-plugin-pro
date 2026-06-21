@@ -24,6 +24,9 @@ export class SettingsTab extends PluginSettingTab {
 		this.pendingUpdates.clear();
 	}
 
+	// TODO: migrate from PluginSettingTab.display() to getSettingDefinitions()
+	// Deferred — the current display() orchestrates multiple section modules with
+	// dynamic refresh (checklist, URL, status card) that doesn't map 1:1 to static definitions.
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
