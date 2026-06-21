@@ -41,7 +41,7 @@ test("CalendarSyncService fails loudly when no destination is enabled", async ()
 	const service = new CalendarSyncService(new IcalService(), []);
 
 	await assert.rejects(
-		() => service.sync([], { discoveredTaskCount: 0, filteredTaskCount: 0, exportedTaskCount: 0 }, DEFAULT_SETTINGS),
+		() => service.sync([], { discoveredTaskCount: 0, filteredTaskCount: 0, exportedTaskCount: 0, filteredReasons: [] }, DEFAULT_SETTINGS),
 		/no save destination enabled/i,
 	);
 });
@@ -77,7 +77,7 @@ test("CalendarSyncService writes only to enabled destinations", async () => {
 	assert.ok(task);
 	const result = await service.sync(
 		[task!],
-		{ discoveredTaskCount: 1, filteredTaskCount: 0, exportedTaskCount: 1 },
+		{ discoveredTaskCount: 1, filteredTaskCount: 0, exportedTaskCount: 1, filteredReasons: [] },
 		DEFAULT_SETTINGS,
 	);
 
@@ -114,7 +114,7 @@ test("CalendarSyncService returns destination level report and throws structured
 	assert.ok(task);
 
 	await assert.rejects(
-		() => service.sync([task!], { discoveredTaskCount: 1, filteredTaskCount: 0, exportedTaskCount: 1 }, DEFAULT_SETTINGS),
+		() => service.sync([task!], { discoveredTaskCount: 1, filteredTaskCount: 0, exportedTaskCount: 1, filteredReasons: [] }, DEFAULT_SETTINGS),
 		(error: unknown) => {
 			assert.ok(error instanceof SyncExecutionError);
 			assert.equal(error.result.destinationResults.length, 2);
@@ -705,6 +705,7 @@ test("SyncPreviewService summarizes exportable events todos and filtered tasks",
 			discoveredTaskCount: 5,
 			filteredTaskCount: 2,
 			exportedTaskCount: 3,
+			filteredReasons: [],
 		},
 		{
 			...DEFAULT_SETTINGS,
@@ -807,6 +808,8 @@ test("DiagnosticsService builds redacted diagnostics bundle", () => {
 			exportedTaskCount: 10,
 			eventCount: 4,
 			todoCount: 6,
+			filteredReasons: [],
+			todoReasons: [],
 		},
 		recentSyncResults: [
 			{
