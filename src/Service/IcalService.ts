@@ -90,18 +90,18 @@ export class IcalService {
 		const hasTime = rawDate.getHours() !== 0 || rawDate.getMinutes() !== 0;
 		const format = hasTime ? "YYYYMMDD[T]HHmmss" : "YYYYMMDD";
 		const dateStr = task.getDate(dateName, format);
-		
-		this.renderEvent(task, dateStr, hasTime, prepend, settings, builder, timezone);
+
+		this.renderEvent(task, dateStr, hasTime, prepend, settings, builder, timezone, dateName);
 	}
 
-	private renderEvent(task: Task, dateValue: string, hasTime: boolean, prepend: string, settings: Settings, builder: ICalBuilder, timezone: string) {
+	private renderEvent(task: Task, dateValue: string, hasTime: boolean, prepend: string, settings: Settings, builder: ICalBuilder, timezone: string, dateName = "Due") {
 		builder.beginEvent();
 		builder.addEventProperty("UID", task.getId(), false);
 		builder.addEventProperty("DTSTAMP", this.getUtcTimestamp(), false);
-		
+
 		const dateKey = hasTime ? `DTSTART;TZID=${timezone}` : "DTSTART;VALUE=DATE";
 		builder.addEventProperty(dateKey, dateValue, false);
-		
+
 		builder.addEventProperty("SUMMARY", this.getSummary(task, prepend));
 		if (task.getPriority() !== null) builder.addEventProperty("PRIORITY", String(task.getPriority()), false);
 		const rrule = task.getRecurrenceRule();
@@ -113,7 +113,7 @@ export class IcalService {
 		if (this.shouldIncludeLocation(settings)) builder.addEventProperty("LOCATION", task.getLocation());
 		const duration = task.getDurationMinutes();
 		if (hasTime && duration) {
-			const endDate = this.addMinutes(task.getRawDate("Due") ?? task.getRawDate("Start"), duration);
+			const endDate = this.addMinutes(task.getRawDate(dateName), duration);
 			if (endDate) builder.addEventProperty(`DTEND;TZID=${timezone}`, this.formatDateTime(endDate), false);
 		}
 

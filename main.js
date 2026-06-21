@@ -898,6 +898,9 @@ var GistClient = class {
   }
 };
 
+// src/version.ts
+var PLUGIN_VERSION = "2.1.8";
+
 // src/Service/ICalBuilder.ts
 var ICalBuilder = class {
   constructor() {
@@ -905,7 +908,7 @@ var ICalBuilder = class {
     __publicField(this, "encoder", new TextEncoder());
     this.lines.push("BEGIN:VCALENDAR");
     this.lines.push("VERSION:2.0");
-    this.lines.push("PRODID:-//liuh886//obsidian-ical-plugin-pro v2.1.0//EN");
+    this.lines.push(`PRODID:-//liuh886//obsidian-ical-plugin-pro v${PLUGIN_VERSION}//EN`);
     this.lines.push("CALSCALE:GREGORIAN");
   }
   setCalendarName(name) {
@@ -1057,10 +1060,9 @@ var IcalService = class {
     const hasTime = rawDate.getHours() !== 0 || rawDate.getMinutes() !== 0;
     const format = hasTime ? "YYYYMMDD[T]HHmmss" : "YYYYMMDD";
     const dateStr = task.getDate(dateName, format);
-    this.renderEvent(task, dateStr, hasTime, prepend, settings, builder, timezone);
+    this.renderEvent(task, dateStr, hasTime, prepend, settings, builder, timezone, dateName);
   }
-  renderEvent(task, dateValue, hasTime, prepend, settings, builder, timezone) {
-    var _a;
+  renderEvent(task, dateValue, hasTime, prepend, settings, builder, timezone, dateName = "Due") {
     builder.beginEvent();
     builder.addEventProperty("UID", task.getId(), false);
     builder.addEventProperty("DTSTAMP", this.getUtcTimestamp(), false);
@@ -1077,7 +1079,7 @@ var IcalService = class {
     if (this.shouldIncludeLocation(settings)) builder.addEventProperty("LOCATION", task.getLocation());
     const duration = task.getDurationMinutes();
     if (hasTime && duration) {
-      const endDate = this.addMinutes((_a = task.getRawDate("Due")) != null ? _a : task.getRawDate("Start"), duration);
+      const endDate = this.addMinutes(task.getRawDate(dateName), duration);
       if (endDate) builder.addEventProperty(`DTEND;TZID=${timezone}`, this.formatDateTime(endDate), false);
     }
     if (settings.enableAlarms && task.alarmOffset !== null) {
@@ -1509,11 +1511,17 @@ function parseRecurrenceRule(summary) {
     { regex: /\bevery weekend\b/i, build: () => "FREQ=WEEKLY;BYDAY=SA,SU" },
     {
       regex: /\bevery\s+(\d+)\s+weeks?\s+on\s+([a-z,\sand]+)\b/i,
-      build: (match) => `FREQ=WEEKLY;INTERVAL=${match[1]};BYDAY=${parseByDayList(match[2])}`
+      build: (match) => {
+        const byday = parseByDayList(match[2]);
+        return byday ? `FREQ=WEEKLY;INTERVAL=${match[1]};BYDAY=${byday}` : null;
+      }
     },
     {
       regex: /\bevery\s+week\s+on\s+([a-z,\sand]+)\b/i,
-      build: (match) => `FREQ=WEEKLY;BYDAY=${parseByDayList(match[1])}`
+      build: (match) => {
+        const byday = parseByDayList(match[1]);
+        return byday ? `FREQ=WEEKLY;BYDAY=${byday}` : null;
+      }
     },
     { regex: /\bevery\s+(\d+)\s+days?\b/i, build: (match) => `FREQ=DAILY;INTERVAL=${match[1]}` },
     { regex: /\bevery day\b/i, build: () => "FREQ=DAILY" },
@@ -1527,16 +1535,18 @@ function parseRecurrenceRule(summary) {
   for (const rule of rules) {
     const match = summary.match(rule.regex);
     if (match) {
-      return {
-        summary: summary.replace(rule.regex, "").replace(/\s{2,}/g, " ").trim(),
-        rrule: rule.build(match)
-      };
+      const cleaned = summary.replace(rule.regex, "").replace(/\s{2,}/g, " ").trim();
+      const rrule = rule.build(match);
+      if (rrule === null) {
+        return { summary: cleaned, rrule: null };
+      }
+      return { summary: cleaned, rrule };
     }
   }
   return { summary, rrule: null };
 }
 function parseByDayList(value) {
-  return value.split(/\s*(?:,|and)\s*/i).map((item) => item.trim()).filter((item) => item.length > 0).map((item) => weekdayToByDay(item)).filter((item, index, values) => values.indexOf(item) === index).join(",");
+  return value.split(/\s*(?:,|and)\s*/i).map((item) => item.trim()).filter((item) => item.length > 0).map((item) => weekdayToByDay(item)).filter((item) => item !== null).filter((item, index, values) => values.indexOf(item) === index).join(",");
 }
 function weekdayToByDay(value) {
   switch (value.toLowerCase()) {
@@ -1555,7 +1565,7 @@ function weekdayToByDay(value) {
     case "sunday":
       return "SU";
     default:
-      return "MO";
+      return null;
   }
 }
 function collectCategories(value) {
@@ -1644,7 +1654,7 @@ var TaskFinder = class {
     const lines = fileCachedContent.split("\n");
     const fileUri = `obsidian://open?vault=${encodeURIComponent(file.vault.getName())}&file=${encodeURIComponent(file.path)}`;
     const fileDate = this.getDateFromFileName(file);
-    const isTaskLine = (line) => /(\*|-)\s*\[.?]\s*/.test(this.normalizeTaskLine(line));
+    const isTaskLine = (line) => /(\*|\+|-)\s*\[.?]\s*/.test(this.normalizeTaskLine(line));
     const taskPositions = listItemsCache.map((item) => item.position.start.line).filter((lineNo) => isTaskLine(lines[lineNo]));
     const results = [];
     for (let i = 0; i < taskPositions.length; i++) {

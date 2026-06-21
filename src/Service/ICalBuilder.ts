@@ -1,3 +1,5 @@
+import { PLUGIN_VERSION } from "../version";
+
 export class ICalBuilder {
 	private lines: string[] = [];
 	private readonly encoder = new TextEncoder();
@@ -5,7 +7,7 @@ export class ICalBuilder {
 	constructor() {
 		this.lines.push("BEGIN:VCALENDAR");
 		this.lines.push("VERSION:2.0");
-		this.lines.push("PRODID:-//liuh886//obsidian-ical-plugin-pro v2.1.0//EN");
+		this.lines.push(`PRODID:-//liuh886//obsidian-ical-plugin-pro v${PLUGIN_VERSION}//EN`);
 		this.lines.push("CALSCALE:GREGORIAN");
 	}
 
