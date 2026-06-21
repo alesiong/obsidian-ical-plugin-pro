@@ -98,7 +98,7 @@ export function renderDestinationSettings(ctx: SectionContext, containerEl: HTML
 	new Setting(gistDiv)
 		.setName("Personal access token")
 		.setDesc(createDescriptionWithLink(
-			"Personal access token with 'gist' scope. ",
+			"Stored locally by Obsidian plugin data. Only the gist scope is required — create a fine-grained PAT scoped to Gist only. ",
 			"Create token",
 			"https://docs.github.com/en/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token",
 		))

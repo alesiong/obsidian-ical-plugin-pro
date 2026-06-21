@@ -1,7 +1,7 @@
 import { App, Notice, PluginSettingTab, Setting, setIcon } from "obsidian";
 import ObsidianIcalPlugin from "../ObsidianIcalPlugin";
 import type { SectionContext } from "./Settings/SectionContext";
-import { renderStatusCard } from "./Settings/StatusCard";
+import { renderSetupChecklist, renderStatusCard } from "./Settings/StatusCard";
 import { renderDestinationSettings } from "./Settings/DestinationSection";
 import { renderTaskSourceSettings } from "./Settings/SourceRulesSection";
 import { renderDateSettings } from "./Settings/SchedulingSection";
@@ -55,6 +55,7 @@ export class SettingsTab extends PluginSettingTab {
 			rerender: () => this.display(),
 		};
 
+		renderSetupChecklist(ctx, containerEl);
 		renderStatusCard(ctx, containerEl);
 		renderDestinationSettings(ctx, containerEl);
 		renderTaskSourceSettings(ctx, containerEl);

@@ -1749,6 +1749,28 @@ var import_obsidian8 = require("obsidian");
 
 // src/UI/Settings/StatusCard.ts
 var import_obsidian3 = require("obsidian");
+function renderSetupChecklist(ctx, containerEl) {
+  const { plugin } = ctx;
+  const s = plugin.settings;
+  const hasDestination = s.isSaveToFileEnabled || s.isSaveToGistEnabled && !!s.githubUsername && !!s.githubGistId && !!s.githubPersonalAccessToken;
+  const hasSource = s.sourceRules.length > 0 && s.sourceRules.some((r) => r.path !== "/" || r.category);
+  const readiness = plugin.getSyncReadiness();
+  const steps = [
+    { label: "Choose destination", done: hasDestination },
+    { label: "Add source path", done: hasSource },
+    { label: "Validate connection", done: readiness.ready },
+    { label: "Sync now", done: plugin.syncHistory.length > 0 }
+  ];
+  const allDone = steps.every((s2) => s2.done);
+  if (allDone) return;
+  const card = containerEl.createDiv({ cls: "ical-pro-checklist" });
+  card.createEl("div", { text: "Getting started", cls: "ical-pro-checklist-title" });
+  steps.forEach((step) => {
+    const row = card.createDiv({ cls: "ical-pro-checklist-item" });
+    (0, import_obsidian3.setIcon)(row, step.done ? "check-circle" : "circle");
+    row.createSpan({ text: step.label, cls: step.done ? "ical-pro-checklist-done" : "" });
+  });
+}
 function renderStatusCard(ctx, containerEl) {
   const statusCard = containerEl.createDiv({ cls: "ical-pro-status-card" });
   renderStatusCardContent(ctx, statusCard, containerEl);
@@ -1843,9 +1865,9 @@ function renderStatusCardContent(ctx, statusCard, outerContainer) {
   });
   const diagnosticsBtn = syncCol.createEl("button", { text: "Copy diagnostics", cls: "ical-sync-button" });
   diagnosticsBtn.title = "Copies settings, readiness, preview, and recent sync results for issue reports.";
-  diagnosticsBtn.onClickEvent(() => {
+  diagnosticsBtn.onClickEvent(async () => {
     try {
-      void navigator.clipboard.writeText(plugin.getDiagnosticsBundle());
+      await navigator.clipboard.writeText(plugin.getDiagnosticsBundle());
       new import_obsidian3.Notice("Diagnostics copied.");
     } catch (e) {
       new import_obsidian3.Notice("Copy failed \u2014 please copy manually.");
@@ -1860,11 +1882,18 @@ function renderUrl(ctx, container) {
   const localPath = plugin.settings.savePath === "/" ? filename : `${plugin.settings.savePath}/${filename}`;
   if (plugin.settings.isSaveToGistEnabled && username && gistId) {
     const url = `https://gist.githubusercontent.com/${username}/${gistId}/raw/${filename}`;
+    const statusRow2 = container.createDiv({ cls: "ical-url-status" });
+    const readiness = plugin.getSyncReadiness();
+    if (readiness.ready) {
+      statusRow2.createSpan({ text: "Gist URL ready", cls: "ical-url-status-ready" });
+    } else {
+      statusRow2.createSpan({ text: "Not validated", cls: "ical-url-status-warn" });
+    }
     container.createEl("code", { text: url, cls: "ical-url-text" });
     const copyBtn = container.createEl("button", { text: "Copy link", cls: "mod-cta" });
-    copyBtn.onClickEvent(() => {
+    copyBtn.onClickEvent(async () => {
       try {
-        void navigator.clipboard.writeText(url);
+        await navigator.clipboard.writeText(url);
         copyBtn.setText("Copied.");
         window.setTimeout(() => copyBtn.setText("Copy link"), 2e3);
       } catch (e) {
@@ -1874,10 +1903,14 @@ function renderUrl(ctx, container) {
     return;
   }
   if (plugin.settings.isSaveToFileEnabled) {
+    const statusRow2 = container.createDiv({ cls: "ical-url-status" });
+    statusRow2.createSpan({ text: "Local path ready", cls: "ical-url-status-ready" });
     container.createEl("code", { text: localPath, cls: "ical-url-text" });
     container.createEl("p", { text: "Local file export is enabled. Subscribe to this file from your calendar app.", cls: "ical-url-placeholder" });
     return;
   }
+  const statusRow = container.createDiv({ cls: "ical-url-status" });
+  statusRow.createSpan({ text: "Not ready", cls: "ical-url-status-warn" });
   container.createEl("p", { text: "No active calendar destination. Enable hosted gist sync or local file export.", cls: "ical-url-placeholder" });
 }
 function updateUrlDisplay(ctx, containerEl) {
@@ -2020,7 +2053,7 @@ function renderDestinationSettings(ctx, containerEl) {
     })
   );
   new import_obsidian4.Setting(gistDiv).setName("Personal access token").setDesc(createDescriptionWithLink(
-    "Personal access token with 'gist' scope. ",
+    "Stored locally by Obsidian plugin data. Only the gist scope is required \u2014 create a fine-grained PAT scoped to Gist only. ",
     "Create token",
     "https://docs.github.com/en/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token"
   )).addText(
@@ -2473,6 +2506,7 @@ var SettingsTab = class extends import_obsidian8.PluginSettingTab {
       addSection: (el, key, icon, text, defaultCollapsed) => this.addSection(el, key, icon, text, defaultCollapsed),
       rerender: () => this.display()
     };
+    renderSetupChecklist(ctx, containerEl);
     renderStatusCard(ctx, containerEl);
     renderDestinationSettings(ctx, containerEl);
     renderTaskSourceSettings(ctx, containerEl);

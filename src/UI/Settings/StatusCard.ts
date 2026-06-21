@@ -1,6 +1,34 @@
 import { Notice, setIcon } from "obsidian";
 import type { SectionContext } from "./SectionContext";
 
+export function renderSetupChecklist(ctx: SectionContext, containerEl: HTMLElement): void {
+	const { plugin } = ctx;
+	const s = plugin.settings;
+
+	const hasDestination = s.isSaveToFileEnabled || (s.isSaveToGistEnabled && !!s.githubUsername && !!s.githubGistId && !!s.githubPersonalAccessToken);
+	const hasSource = s.sourceRules.length > 0 && s.sourceRules.some(r => r.path !== "/" || r.category);
+	const readiness = plugin.getSyncReadiness();
+
+	const steps: { label: string; done: boolean }[] = [
+		{ label: "Choose destination", done: hasDestination },
+		{ label: "Add source path", done: hasSource },
+		{ label: "Validate connection", done: readiness.ready },
+		{ label: "Sync now", done: plugin.syncHistory.length > 0 },
+	];
+
+	const allDone = steps.every(s => s.done);
+	if (allDone) return; // Hide checklist once setup is complete
+
+	const card = containerEl.createDiv({ cls: "ical-pro-checklist" });
+	card.createEl("div", { text: "Getting started", cls: "ical-pro-checklist-title" });
+
+	steps.forEach(step => {
+		const row = card.createDiv({ cls: "ical-pro-checklist-item" });
+		setIcon(row, step.done ? "check-circle" : "circle");
+		row.createSpan({ text: step.label, cls: step.done ? "ical-pro-checklist-done" : "" });
+	});
+}
+
 export function renderStatusCard(ctx: SectionContext, containerEl: HTMLElement): void {
 	const statusCard = containerEl.createDiv({ cls: "ical-pro-status-card" });
 	renderStatusCardContent(ctx, statusCard, containerEl);
@@ -105,9 +133,9 @@ function renderStatusCardContent(ctx: SectionContext, statusCard: HTMLElement, o
 
 	const diagnosticsBtn = syncCol.createEl("button", { text: "Copy diagnostics", cls: "ical-sync-button" });
 	diagnosticsBtn.title = "Copies settings, readiness, preview, and recent sync results for issue reports.";
-	diagnosticsBtn.onClickEvent(() => {
+	diagnosticsBtn.onClickEvent(async () => {
 		try {
-			void navigator.clipboard.writeText(plugin.getDiagnosticsBundle());
+			await navigator.clipboard.writeText(plugin.getDiagnosticsBundle());
 			new Notice("Diagnostics copied.");
 		} catch {
 			new Notice("Copy failed — please copy manually.");
@@ -126,11 +154,18 @@ function renderUrl(ctx: SectionContext, container: HTMLElement): void {
 
 	if (plugin.settings.isSaveToGistEnabled && username && gistId) {
 		const url = `https://gist.githubusercontent.com/${username}/${gistId}/raw/${filename}`;
+		const statusRow = container.createDiv({ cls: "ical-url-status" });
+		const readiness = plugin.getSyncReadiness();
+		if (readiness.ready) {
+			statusRow.createSpan({ text: "Gist URL ready", cls: "ical-url-status-ready" });
+		} else {
+			statusRow.createSpan({ text: "Not validated", cls: "ical-url-status-warn" });
+		}
 		container.createEl("code", { text: url, cls: "ical-url-text" });
 		const copyBtn = container.createEl("button", { text: "Copy link", cls: "mod-cta" });
-		copyBtn.onClickEvent(() => {
+		copyBtn.onClickEvent(async () => {
 			try {
-				void navigator.clipboard.writeText(url);
+				await navigator.clipboard.writeText(url);
 				copyBtn.setText("Copied.");
 				window.setTimeout(() => copyBtn.setText("Copy link"), 2000);
 			} catch {
@@ -141,11 +176,15 @@ function renderUrl(ctx: SectionContext, container: HTMLElement): void {
 	}
 
 	if (plugin.settings.isSaveToFileEnabled) {
+		const statusRow = container.createDiv({ cls: "ical-url-status" });
+		statusRow.createSpan({ text: "Local path ready", cls: "ical-url-status-ready" });
 		container.createEl("code", { text: localPath, cls: "ical-url-text" });
 		container.createEl("p", { text: "Local file export is enabled. Subscribe to this file from your calendar app.", cls: "ical-url-placeholder" });
 		return;
 	}
 
+	const statusRow = container.createDiv({ cls: "ical-url-status" });
+	statusRow.createSpan({ text: "Not ready", cls: "ical-url-status-warn" });
 	container.createEl("p", { text: "No active calendar destination. Enable hosted gist sync or local file export.", cls: "ical-url-placeholder" });
 }
 

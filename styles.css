@@ -290,3 +290,61 @@ button.mod-cta.ical-sync-fail {
     padding: 12px 0;
     border-top: none;
 }
+
+/* --- Setup Checklist --- */
+.ical-pro-checklist {
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-left: 4px solid var(--text-accent);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+}
+
+.ical-pro-checklist-title {
+    font-weight: bold;
+    font-size: 0.9em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.ical-pro-checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+    font-size: 0.9em;
+}
+
+.ical-pro-checklist-item svg {
+    width: 16px;
+    height: 16px;
+    color: var(--text-muted);
+}
+
+.ical-pro-checklist-item:first-of-type svg {
+    color: var(--text-success);
+}
+
+.ical-pro-checklist-done {
+    color: var(--text-muted);
+    text-decoration: line-through;
+}
+
+/* --- URL Status --- */
+.ical-url-status {
+    font-size: 0.8em;
+    margin-bottom: 4px;
+}
+
+.ical-url-status-ready {
+    color: var(--text-success);
+    font-weight: 500;
+}
+
+.ical-url-status-warn {
+    color: var(--text-warning);
+    font-weight: 500;
+}
