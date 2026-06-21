@@ -899,7 +899,7 @@ var GistClient = class {
 };
 
 // src/version.ts
-var PLUGIN_VERSION = "2.1.8";
+var PLUGIN_VERSION = "2.1.9";
 
 // src/Service/ICalBuilder.ts
 var ICalBuilder = class {

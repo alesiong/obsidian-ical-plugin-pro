@@ -20,7 +20,9 @@ DESIGN.md
 
 # Scripts & Tooling (local only)
 scripts/*
-!scripts/smoke-tests.ts
+
+# Claude Code (local only)
+.claude/
 
 # Editor config
 .vscode/
