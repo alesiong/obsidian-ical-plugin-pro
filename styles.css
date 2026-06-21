@@ -223,8 +223,7 @@ button.mod-cta.ical-sync-fail {
     margin-bottom: 8px;
 }
 
-.ical-pro-section-group.is-collapsed .setting-item:not(:first-child),
-.ical-pro-section-group.is-collapsed p {
+.ical-pro-section-group.is-collapsed .ical-pro-section-body {
     display: none;
 }
 

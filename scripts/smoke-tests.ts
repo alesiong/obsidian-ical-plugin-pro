@@ -17,6 +17,7 @@ import { TaskFinder } from "../src/Service/TaskFinder";
 import { TaskIndex } from "../src/Service/TaskIndex";
 import { Task } from "../src/Model/Task";
 import { TaskStatus } from "../src/Model/TaskStatus";
+import { PLUGIN_VERSION } from "../src/version";
 
 const encoder = new TextEncoder();
 
@@ -1124,4 +1125,93 @@ test("SyncPreviewService explains filtered reasons and todo downgrade reasons", 
 
 	assert.equal(service.getAllTasks().length, 0);
 	});
+
+test("PRODID contains the current plugin version", () => {
+	const calendar = new IcalService().getCalendar([], DEFAULT_SETTINGS);
+	assert.match(calendar, new RegExp(`PRODID:-//liuh886//obsidian-ical-plugin-pro v${PLUGIN_VERSION}//EN`));
+});
+
+test("TaskFinder detects + [ ] bullet tasks", async () => {
+	const finder = new TaskFinder({
+		cachedRead: async () => [
+			"+ [ ] Plus bullet task",
+			"* [ ] Star bullet task",
+			"- [ ] Dash bullet task",
+		].join("\n"),
+	} as never);
+
+	const tasks = await finder.findTasks(
+		{
+			path: "test.md",
+			vault: { getName: () => "Demo Vault" },
+		} as never,
+		[
+			{ position: { start: { line: 0 } } },
+			{ position: { start: { line: 1 } } },
+			{ position: { start: { line: 2 } } },
+		],
+		null,
+		DEFAULT_SETTINGS,
+	);
+
+	assert.equal(tasks.length, 3);
+	assert.equal(tasks[0].getSummary(), "Plus bullet task");
+	assert.equal(tasks[1].getSummary(), "Star bullet task");
+	assert.equal(tasks[2].getSummary(), "Dash bullet task");
+});
+
+test("Unknown recurrence weekday produces no RRULE", () => {
+	const task = createTaskFromLine(
+		"- [ ] Meeting every week on Funday",
+		"obsidian://open?vault=Demo&file=Test.md",
+		"Test.md:1",
+		null,
+		"",
+		DEFAULT_SETTINGS,
+	);
+
+	assert.ok(task);
+	assert.equal(task.getRecurrenceRule(), null);
+});
+
+test("Valid recurrence weekday still works after weekdayToByDay fix", () => {
+	const task = createTaskFromLine(
+		"- [ ] Meeting every week on Wednesday",
+		"obsidian://open?vault=Demo&file=Test.md",
+		"Test.md:1",
+		null,
+		"",
+		DEFAULT_SETTINGS,
+	);
+
+	assert.ok(task);
+	assert.equal(task.getRecurrenceRule(), "FREQ=WEEKLY;BYDAY=WE");
+});
+
+test("CreateMultipleEvents DTEND uses the date being rendered, not hardcoded Due", () => {
+	const task = createTaskFromLine(
+		"- [ ] 09:00-10:00 Meeting 🛫 2026-06-20 📅 2026-06-21",
+		"obsidian://open?vault=Demo&file=Test.md",
+		"Test.md:1",
+		null,
+		"",
+		DEFAULT_SETTINGS,
+	);
+
+	assert.ok(task);
+	const calendar = new IcalService().getCalendar([task], {
+		...DEFAULT_SETTINGS,
+		howToProcessMultipleDates: "CreateMultipleEvents",
+	});
+
+	// The Start event (🛫) should have DTEND = Start date + 60 min = 10:00
+	const startMatch = calendar.match(/DTSTART;TZID=[^:]+:20260620T090000[\s\S]*?DTEND;TZID=[^:]+:(\d{8}T\d{6})/);
+	assert.ok(startMatch, "Start VEVENT should have DTEND");
+	assert.equal(startMatch[1], "20260620T100000");
+
+	// The Due event (📅) should have DTEND = Due date + 60 min = 11:00
+	const dueMatch = calendar.match(/DTSTART;TZID=[^:]+:20260621T090000[\s\S]*?DTEND;TZID=[^:]+:(\d{8}T\d{6})/);
+	assert.ok(dueMatch, "Due VEVENT should have DTEND");
+	assert.equal(dueMatch[1], "20260621T100000");
+});
 

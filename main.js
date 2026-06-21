@@ -32,7 +32,7 @@ __export(main_exports, {
 module.exports = __toCommonJS(main_exports);
 
 // src/ObsidianIcalPlugin.ts
-var import_obsidian5 = require("obsidian");
+var import_obsidian9 = require("obsidian");
 
 // src/Application/SyncExecutionError.ts
 var SyncExecutionError = class extends Error {
@@ -898,6 +898,9 @@ var GistClient = class {
   }
 };
 
+// src/version.ts
+var PLUGIN_VERSION = "2.1.8";
+
 // src/Service/ICalBuilder.ts
 var ICalBuilder = class {
   constructor() {
@@ -905,7 +908,7 @@ var ICalBuilder = class {
     __publicField(this, "encoder", new TextEncoder());
     this.lines.push("BEGIN:VCALENDAR");
     this.lines.push("VERSION:2.0");
-    this.lines.push("PRODID:-//liuh886//obsidian-ical-plugin-pro v2.1.0//EN");
+    this.lines.push(`PRODID:-//liuh886//obsidian-ical-plugin-pro v${PLUGIN_VERSION}//EN`);
     this.lines.push("CALSCALE:GREGORIAN");
   }
   setCalendarName(name) {
@@ -1057,10 +1060,9 @@ var IcalService = class {
     const hasTime = rawDate.getHours() !== 0 || rawDate.getMinutes() !== 0;
     const format = hasTime ? "YYYYMMDD[T]HHmmss" : "YYYYMMDD";
     const dateStr = task.getDate(dateName, format);
-    this.renderEvent(task, dateStr, hasTime, prepend, settings, builder, timezone);
+    this.renderEvent(task, dateStr, hasTime, prepend, settings, builder, timezone, dateName);
   }
-  renderEvent(task, dateValue, hasTime, prepend, settings, builder, timezone) {
-    var _a;
+  renderEvent(task, dateValue, hasTime, prepend, settings, builder, timezone, dateName = "Due") {
     builder.beginEvent();
     builder.addEventProperty("UID", task.getId(), false);
     builder.addEventProperty("DTSTAMP", this.getUtcTimestamp(), false);
@@ -1077,7 +1079,7 @@ var IcalService = class {
     if (this.shouldIncludeLocation(settings)) builder.addEventProperty("LOCATION", task.getLocation());
     const duration = task.getDurationMinutes();
     if (hasTime && duration) {
-      const endDate = this.addMinutes((_a = task.getRawDate("Due")) != null ? _a : task.getRawDate("Start"), duration);
+      const endDate = this.addMinutes(task.getRawDate(dateName), duration);
       if (endDate) builder.addEventProperty(`DTEND;TZID=${timezone}`, this.formatDateTime(endDate), false);
     }
     if (settings.enableAlarms && task.alarmOffset !== null) {
@@ -1509,11 +1511,17 @@ function parseRecurrenceRule(summary) {
     { regex: /\bevery weekend\b/i, build: () => "FREQ=WEEKLY;BYDAY=SA,SU" },
     {
       regex: /\bevery\s+(\d+)\s+weeks?\s+on\s+([a-z,\sand]+)\b/i,
-      build: (match) => `FREQ=WEEKLY;INTERVAL=${match[1]};BYDAY=${parseByDayList(match[2])}`
+      build: (match) => {
+        const byday = parseByDayList(match[2]);
+        return byday ? `FREQ=WEEKLY;INTERVAL=${match[1]};BYDAY=${byday}` : null;
+      }
     },
     {
       regex: /\bevery\s+week\s+on\s+([a-z,\sand]+)\b/i,
-      build: (match) => `FREQ=WEEKLY;BYDAY=${parseByDayList(match[1])}`
+      build: (match) => {
+        const byday = parseByDayList(match[1]);
+        return byday ? `FREQ=WEEKLY;BYDAY=${byday}` : null;
+      }
     },
     { regex: /\bevery\s+(\d+)\s+days?\b/i, build: (match) => `FREQ=DAILY;INTERVAL=${match[1]}` },
     { regex: /\bevery day\b/i, build: () => "FREQ=DAILY" },
@@ -1527,16 +1535,18 @@ function parseRecurrenceRule(summary) {
   for (const rule of rules) {
     const match = summary.match(rule.regex);
     if (match) {
-      return {
-        summary: summary.replace(rule.regex, "").replace(/\s{2,}/g, " ").trim(),
-        rrule: rule.build(match)
-      };
+      const cleaned = summary.replace(rule.regex, "").replace(/\s{2,}/g, " ").trim();
+      const rrule = rule.build(match);
+      if (rrule === null) {
+        return { summary: cleaned, rrule: null };
+      }
+      return { summary: cleaned, rrule };
     }
   }
   return { summary, rrule: null };
 }
 function parseByDayList(value) {
-  return value.split(/\s*(?:,|and)\s*/i).map((item) => item.trim()).filter((item) => item.length > 0).map((item) => weekdayToByDay(item)).filter((item, index, values) => values.indexOf(item) === index).join(",");
+  return value.split(/\s*(?:,|and)\s*/i).map((item) => item.trim()).filter((item) => item.length > 0).map((item) => weekdayToByDay(item)).filter((item) => item !== null).filter((item, index, values) => values.indexOf(item) === index).join(",");
 }
 function weekdayToByDay(value) {
   switch (value.toLowerCase()) {
@@ -1555,7 +1565,7 @@ function weekdayToByDay(value) {
     case "sunday":
       return "SU";
     default:
-      return "MO";
+      return null;
   }
 }
 function collectCategories(value) {
@@ -1644,7 +1654,7 @@ var TaskFinder = class {
     const lines = fileCachedContent.split("\n");
     const fileUri = `obsidian://open?vault=${encodeURIComponent(file.vault.getName())}&file=${encodeURIComponent(file.path)}`;
     const fileDate = this.getDateFromFileName(file);
-    const isTaskLine = (line) => /(\*|-)\s*\[.?]\s*/.test(this.normalizeTaskLine(line));
+    const isTaskLine = (line) => /(\*|\+|-)\s*\[.?]\s*/.test(this.normalizeTaskLine(line));
     const taskPositions = listItemsCache.map((item) => item.position.start.line).filter((lineNo) => isTaskLine(lines[lineNo]));
     const results = [];
     for (let i = 0; i < taskPositions.length; i++) {
@@ -1735,11 +1745,168 @@ var TaskIndex = class {
 };
 
 // src/UI/SettingsTab.ts
+var import_obsidian8 = require("obsidian");
+
+// src/UI/Settings/StatusCard.ts
+var import_obsidian3 = require("obsidian");
+function renderStatusCard(ctx, containerEl) {
+  const statusCard = containerEl.createDiv({ cls: "ical-pro-status-card" });
+  renderStatusCardContent(ctx, statusCard, containerEl);
+}
+function refreshStatusCard(ctx, containerEl) {
+  const existing = containerEl.querySelector(".ical-pro-status-card");
+  if (!existing) return;
+  existing.empty();
+  renderStatusCardContent(ctx, existing, containerEl);
+}
+function renderStatusCardContent(ctx, statusCard, outerContainer) {
+  const { plugin, runAsync } = ctx;
+  const statusGrid = statusCard.createDiv({ cls: "ical-pro-status-grid" });
+  const urlCol = statusGrid.createDiv({ cls: "ical-pro-status-col" });
+  const statusTitle = urlCol.createDiv({ cls: "ical-pro-card-title" });
+  (0, import_obsidian3.setIcon)(statusTitle, "link");
+  statusTitle.createSpan({ text: " Subscription url" });
+  const urlContainer = urlCol.createDiv({ cls: "ical-url-container" });
+  renderUrl(ctx, urlContainer);
+  const syncCol = statusGrid.createDiv({ cls: "ical-pro-status-col" });
+  const syncTitle = syncCol.createDiv({ cls: "ical-pro-card-title" });
+  (0, import_obsidian3.setIcon)(syncTitle, "refresh-cw");
+  syncTitle.createSpan({ text: " Sync status" });
+  const syncInfo = syncCol.createDiv({ cls: "ical-sync-info" });
+  const resultRow = syncInfo.createDiv({ cls: "ical-sync-result" });
+  const statusClass = `ical-status-${plugin.lastSyncStatus.toLowerCase().replace(/\s+/g, "-")}`;
+  resultRow.createSpan({ text: plugin.lastSyncStatus, cls: statusClass });
+  resultRow.createSpan({ text: plugin.lastSyncTime, cls: "ical-sync-time" });
+  if (plugin.lastSyncMessage) {
+    syncInfo.createEl("div", { text: plugin.lastSyncMessage, cls: "ical-sync-detail" });
+  }
+  const readiness = plugin.getSyncReadiness();
+  if (readiness.ready) {
+    syncInfo.createEl("div", { text: `Ready: ${readiness.activeDestinations.join(", ")}`, cls: "ical-sync-detail" });
+  } else {
+    readiness.issues.forEach((issue) => {
+      syncInfo.createEl("div", { text: issue, cls: "ical-sync-detail ical-sync-issue" });
+    });
+    const guidance = plugin.getRecommendedNextStep();
+    if (guidance && guidance !== "No destination issues detected.") {
+      const guidanceEl = syncCol.createDiv({ cls: "ical-pro-guidance" });
+      (0, import_obsidian3.setIcon)(guidanceEl, "lightbulb");
+      guidanceEl.createSpan({ text: guidance });
+    }
+  }
+  const preview = plugin.getSyncPreview();
+  const previewRow = syncInfo.createDiv({ cls: "ical-sync-preview" });
+  previewRow.createSpan({ text: `${preview.exportedTaskCount}`, cls: "ical-preview-count" });
+  previewRow.createSpan({ text: ` to export ` });
+  previewRow.createSpan({ text: `(${preview.eventCount} events, ${preview.todoCount} todos)`, cls: "ical-sync-time" });
+  if (preview.filteredTaskCount > 0) {
+    const filteredRow = syncInfo.createDiv({ cls: "ical-sync-detail" });
+    filteredRow.createSpan({ text: `${preview.filteredTaskCount} filtered` });
+    preview.filteredReasons.forEach((entry) => {
+      syncInfo.createEl("div", { text: `${entry.reason} (${entry.count})`, cls: "ical-sync-sub" });
+    });
+  }
+  const recentResult = plugin.syncHistory[0];
+  if (recentResult == null ? void 0 : recentResult.destinationResults.length) {
+    syncInfo.createDiv({ cls: "ical-sync-divider" });
+    recentResult.destinationResults.forEach((result) => {
+      const row = syncInfo.createDiv({ cls: `ical-sync-dest ical-dest-${result.status}` });
+      row.createSpan({ text: result.name, cls: "ical-dest-name" });
+      row.createSpan({ text: result.status });
+      if (result.message) {
+        row.createSpan({ text: ` \u2014 ${result.message}`, cls: "ical-sync-time" });
+      }
+    });
+  }
+  const syncBtn = syncCol.createEl("button", { text: "Sync now", cls: "mod-cta ical-sync-button" });
+  syncBtn.onClickEvent(() => {
+    runAsync(async () => {
+      syncBtn.disabled = true;
+      syncBtn.setText("Syncing...");
+      syncBtn.removeClass("ical-sync-success", "ical-sync-fail");
+      try {
+        await plugin.saveCalendar();
+        syncBtn.setText("Synced!");
+        syncBtn.addClass("ical-sync-success");
+      } catch (e) {
+        syncBtn.setText("Failed");
+        syncBtn.addClass("ical-sync-fail");
+      } finally {
+        window.setTimeout(() => {
+          syncBtn.disabled = false;
+          syncBtn.setText("Sync now");
+          syncBtn.removeClass("ical-sync-success", "ical-sync-fail");
+          refreshStatusCard(ctx, outerContainer);
+        }, 1500);
+      }
+    });
+  });
+  const diagnosticsBtn = syncCol.createEl("button", { text: "Copy diagnostics", cls: "ical-sync-button" });
+  diagnosticsBtn.title = "Copies settings, readiness, preview, and recent sync results for issue reports.";
+  diagnosticsBtn.onClickEvent(() => {
+    try {
+      void navigator.clipboard.writeText(plugin.getDiagnosticsBundle());
+      new import_obsidian3.Notice("Diagnostics copied.");
+    } catch (e) {
+      new import_obsidian3.Notice("Copy failed \u2014 please copy manually.");
+    }
+  });
+}
+function renderUrl(ctx, container) {
+  const { plugin } = ctx;
+  const username = plugin.settings.githubUsername;
+  const gistId = plugin.settings.githubGistId;
+  const filename = plugin.settings.filename || "obsidian.ics";
+  const localPath = plugin.settings.savePath === "/" ? filename : `${plugin.settings.savePath}/${filename}`;
+  if (plugin.settings.isSaveToGistEnabled && username && gistId) {
+    const url = `https://gist.githubusercontent.com/${username}/${gistId}/raw/${filename}`;
+    container.createEl("code", { text: url, cls: "ical-url-text" });
+    const copyBtn = container.createEl("button", { text: "Copy link", cls: "mod-cta" });
+    copyBtn.onClickEvent(() => {
+      try {
+        void navigator.clipboard.writeText(url);
+        copyBtn.setText("Copied.");
+        window.setTimeout(() => copyBtn.setText("Copy link"), 2e3);
+      } catch (e) {
+        new import_obsidian3.Notice("Copy failed \u2014 please copy manually.");
+      }
+    });
+    return;
+  }
+  if (plugin.settings.isSaveToFileEnabled) {
+    container.createEl("code", { text: localPath, cls: "ical-url-text" });
+    container.createEl("p", { text: "Local file export is enabled. Subscribe to this file from your calendar app.", cls: "ical-url-placeholder" });
+    return;
+  }
+  container.createEl("p", { text: "No active calendar destination. Enable hosted gist sync or local file export.", cls: "ical-url-placeholder" });
+}
+function updateUrlDisplay(ctx, containerEl) {
+  const container = containerEl.querySelector(".ical-url-container");
+  if (!container) return;
+  container.empty();
+  renderUrl(ctx, container);
+}
+
+// src/UI/Settings/DestinationSection.ts
+var import_obsidian6 = require("obsidian");
+
+// src/UI/Settings/SectionContext.ts
 var import_obsidian4 = require("obsidian");
+function createDescriptionWithLink(prefix, linkText, href) {
+  const fragment = document.createDocumentFragment();
+  fragment.append(prefix);
+  const link = document.createElement("a");
+  link.href = href;
+  link.textContent = linkText;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  fragment.append(link);
+  return fragment;
+}
 
 // src/UI/FolderSuggest.ts
-var import_obsidian3 = require("obsidian");
-var FolderSuggest = class extends import_obsidian3.AbstractInputSuggest {
+var import_obsidian5 = require("obsidian");
+var FolderSuggest = class extends import_obsidian5.AbstractInputSuggest {
   constructor(app, textInputEl) {
     super(app, textInputEl);
     __publicField(this, "textInput");
@@ -1750,7 +1917,7 @@ var FolderSuggest = class extends import_obsidian3.AbstractInputSuggest {
     const folders = [];
     const lowerCaseInputStr = inputStr.toLowerCase();
     abstractFiles.forEach((folder) => {
-      if (folder instanceof import_obsidian3.TFolder && folder.path.toLowerCase().includes(lowerCaseInputStr)) {
+      if (folder instanceof import_obsidian5.TFolder && folder.path.toLowerCase().includes(lowerCaseInputStr)) {
         folders.push(folder);
       }
     });
@@ -1765,7 +1932,7 @@ var FolderSuggest = class extends import_obsidian3.AbstractInputSuggest {
     this.close();
   }
 };
-var CategorySuggest = class extends import_obsidian3.AbstractInputSuggest {
+var CategorySuggest = class extends import_obsidian5.AbstractInputSuggest {
   constructor(app, textInputEl, categories) {
     super(app, textInputEl);
     __publicField(this, "textInput");
@@ -1787,20 +1954,486 @@ var CategorySuggest = class extends import_obsidian3.AbstractInputSuggest {
   }
 };
 
-// src/UI/SettingsTab.ts
+// src/UI/Settings/DestinationSection.ts
+function renderDestinationSettings(ctx, containerEl) {
+  const { plugin, scheduleUpdate, runAsync, addSection } = ctx;
+  const sectionEl = addSection(containerEl, "destination", "cloud", "Sync and cloud connectivity");
+  const body = sectionEl.createDiv({ cls: "ical-pro-section-body" });
+  new import_obsidian4.Setting(body).setName("Calendar filename").setDesc("Used for both local storage and hosted gist sync, for example calendar.ics.").addText(
+    (text) => text.setPlaceholder("Calendar.ics").setValue(plugin.settings.filename).onChange((value) => {
+      scheduleUpdate("filename", async () => {
+        await plugin.updateSettings({ filename: value || "obsidian.ics" });
+        updateUrlDisplay(ctx, containerEl);
+      });
+    })
+  );
+  new import_obsidian4.Setting(body).setName("Save to local file").setDesc("Export the .ics file to your vault for local sync workflows.").addToggle(
+    (toggle) => toggle.setValue(plugin.settings.isSaveToFileEnabled).onChange((value) => {
+      runAsync(async () => {
+        await plugin.updateSettings({ isSaveToFileEnabled: value });
+        localFileDiv.classList.toggle("is-hidden", !value);
+      });
+    })
+  );
+  const localFileDiv = body.createDiv({
+    cls: `ical-pro-conditional${plugin.settings.isSaveToFileEnabled ? "" : " is-hidden"}`
+  });
+  new import_obsidian4.Setting(localFileDiv).setName("Vault storage path").setDesc("Specify the folder for the local .ics file relative to vault root.").addText((text) => {
+    new FolderSuggest(plugin.app, text.inputEl);
+    text.setValue(plugin.settings.savePath).onChange((value) => {
+      scheduleUpdate(
+        "savePath",
+        () => plugin.updateSettings({ savePath: (0, import_obsidian6.normalizePath)(value) || "/" })
+      );
+    });
+  });
+  new import_obsidian4.Setting(body).setName("Sync to hosted gist").setDesc("Publish your calendar to a private gist for subscriptions across devices.").addToggle(
+    (toggle) => toggle.setValue(plugin.settings.isSaveToGistEnabled).onChange((value) => {
+      runAsync(async () => {
+        await plugin.updateSettings({ isSaveToGistEnabled: value });
+        gistDiv.classList.toggle("is-hidden", !value);
+        updateUrlDisplay(ctx, containerEl);
+      });
+    })
+  );
+  const gistDiv = body.createDiv({
+    cls: `ical-pro-conditional${plugin.settings.isSaveToGistEnabled ? "" : " is-hidden"}`
+  });
+  new import_obsidian4.Setting(gistDiv).setName("GitHub username").setDesc("Used to build the raw subscription link for your hosted gist.").addText(
+    (text) => text.setValue(plugin.settings.githubUsername).onChange((value) => {
+      scheduleUpdate("githubUsername", async () => {
+        await plugin.updateSettings({ githubUsername: value });
+        updateUrlDisplay(ctx, containerEl);
+      });
+    })
+  );
+  new import_obsidian4.Setting(gistDiv).setName("Gist ID").setDesc(createDescriptionWithLink(
+    "Enter the identifier from the gist link used as the sync target. ",
+    "Open Gist",
+    "https://gist.github.com/"
+  )).addText(
+    (text) => text.setValue(plugin.settings.githubGistId).onChange((value) => {
+      scheduleUpdate("githubGistId", async () => {
+        await plugin.updateSettings({ githubGistId: value });
+        updateUrlDisplay(ctx, containerEl);
+      });
+    })
+  );
+  new import_obsidian4.Setting(gistDiv).setName("Personal access token").setDesc(createDescriptionWithLink(
+    "Personal access token with 'gist' scope. ",
+    "Create token",
+    "https://docs.github.com/en/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token"
+  )).addText(
+    (text) => text.setPlaceholder("Paste access token").setValue(plugin.settings.githubPersonalAccessToken).onChange((value) => {
+      scheduleUpdate(
+        "githubPersonalAccessToken",
+        () => plugin.updateSettings({ githubPersonalAccessToken: value })
+      );
+    }).inputEl.setAttribute("type", "password")
+  );
+  new import_obsidian4.Setting(gistDiv).setName("Validate gist access").setDesc("Check whether the configured token and identifier are reachable.").addButton(
+    (button) => button.setButtonText("Validate").onClick(() => {
+      runAsync(async () => {
+        button.setDisabled(true);
+        button.setButtonText("Checking access...");
+        const result = await plugin.validateConnection();
+        new import_obsidian6.Notice(result.message);
+        button.setDisabled(false);
+        button.setButtonText("Validate");
+      });
+    })
+  );
+}
+
+// src/UI/Settings/SourceRulesSection.ts
+var import_obsidian7 = require("obsidian");
+function renderTaskSourceSettings(ctx, containerEl) {
+  const { plugin, runAsync, addSection, rerender } = ctx;
+  const sectionEl = addSection(containerEl, "scope", "search", "Scope and discovery");
+  const body = sectionEl.createDiv({ cls: "ical-pro-section-body" });
+  body.createEl("p", {
+    text: "Bind one source path to one category. Use multiple rules when you want different folders exported as different calendar categories.",
+    cls: "setting-item-description"
+  });
+  const rulesContainer = body.createDiv({ cls: "ical-pro-source-rules" });
+  plugin.settings.sourceRules.forEach((rule, index) => {
+    renderSourceRuleSetting(ctx, rulesContainer, rule, index);
+  });
+  if (plugin.settings.sourceRules.length === 1 && !plugin.settings.sourceRules[0].category) {
+    body.createEl("p", {
+      text: "Currently scanning entire vault with no category. Add rules to assign categories to specific folders for calendar filtering.",
+      cls: "setting-item-description ical-pro-hint"
+    });
+  }
+  new import_obsidian4.Setting(body).setName("Add source path").setDesc("Add another path/category rule.").addButton(
+    (button) => button.setIcon("plus").setButtonText("Add path").onClick(() => {
+      runAsync(async () => {
+        await plugin.updateSettings(
+          { sourceRules: [...plugin.settings.sourceRules, { path: "/", category: "" }] },
+          { rebuildIndex: true }
+        );
+        rerender();
+      });
+    })
+  );
+  body.createEl("p", {
+    text: "Specify folders or files to explicitly ignore. Tasks in these paths will never be indexed.",
+    cls: "setting-item-description"
+  });
+  const excludedContainer = body.createDiv({ cls: "ical-pro-excluded-paths" });
+  plugin.settings.excludedPaths.forEach((path, index) => {
+    renderExcludedPathSetting(ctx, excludedContainer, path, index);
+  });
+  new import_obsidian4.Setting(body).setName("Add excluded path").setDesc("Add another folder or file to ignore.").addButton(
+    (button) => button.setIcon("plus").setButtonText("Add exclusion").onClick(() => {
+      runAsync(async () => {
+        await plugin.updateSettings(
+          { excludedPaths: [...plugin.settings.excludedPaths, "/"] },
+          { rebuildIndex: true }
+        );
+        rerender();
+      });
+    })
+  );
+}
+function renderSourceRuleSetting(ctx, containerEl, rule, index) {
+  const { plugin, runAsync, rerender } = ctx;
+  const ruleName = rule.category ? `${rule.path}  \u2192  ${rule.category}` : rule.path || `Source path ${index + 1}`;
+  const setting = new import_obsidian4.Setting(containerEl).setName(ruleName).setDesc("Tasks in this path inherit the configured category.").addText((text) => {
+    new FolderSuggest(plugin.app, text.inputEl);
+    text.setPlaceholder("/").setValue(rule.path).onChange((value) => {
+      scheduleSourceRuleUpdate(ctx, index, { path: (0, import_obsidian7.normalizePath)(value) || "/" });
+    });
+  }).addText((text) => {
+    const existingCategories = plugin.settings.sourceRules.map((r) => r.category);
+    new CategorySuggest(plugin.app, text.inputEl, existingCategories);
+    text.setPlaceholder("Work").setValue(rule.category).onChange((value) => {
+      scheduleSourceRuleUpdate(ctx, index, { category: value });
+    });
+  });
+  const nameEl = setting.settingEl.querySelector(".setting-item-name");
+  const inputs = setting.settingEl.querySelectorAll("input[type='text'], input:not([type])");
+  if (nameEl && inputs.length >= 2) {
+    const updateName = () => {
+      const path = inputs[0].value;
+      const category = inputs[1].value;
+      nameEl.textContent = category ? `${path}  \u2192  ${category}` : path || `Source path ${index + 1}`;
+    };
+    inputs[0].addEventListener("input", updateName);
+    inputs[1].addEventListener("input", updateName);
+  }
+  setting.addExtraButton(
+    (button) => button.setIcon("trash").setTooltip("Remove path rule").onClick(() => {
+      runAsync(async () => {
+        const sourceRules = plugin.settings.sourceRules.filter((_, ruleIndex) => ruleIndex !== index);
+        await plugin.updateSettings(
+          { sourceRules: sourceRules.length > 0 ? sourceRules : [{ path: "/", category: "" }] },
+          { rebuildIndex: true }
+        );
+        rerender();
+      });
+    })
+  );
+}
+function renderExcludedPathSetting(ctx, containerEl, path, index) {
+  const { plugin, runAsync, rerender } = ctx;
+  new import_obsidian4.Setting(containerEl).setName(path || `Excluded path ${index + 1}`).addText((text) => {
+    new FolderSuggest(plugin.app, text.inputEl);
+    text.setPlaceholder("/").setValue(path).onChange((value) => {
+      scheduleExcludedPathUpdate(ctx, index, (0, import_obsidian7.normalizePath)(value) || "/");
+    });
+  }).addExtraButton(
+    (button) => button.setIcon("trash").setTooltip("Remove exclusion").onClick(() => {
+      runAsync(async () => {
+        const excludedPaths = plugin.settings.excludedPaths.filter((_, pathIndex) => pathIndex !== index);
+        await plugin.updateSettings({ excludedPaths }, { rebuildIndex: true });
+        rerender();
+      });
+    })
+  );
+}
+function scheduleExcludedPathUpdate(ctx, index, path) {
+  ctx.scheduleUpdate(`excluded-path-${index}`, async () => {
+    const excludedPaths = ctx.plugin.settings.excludedPaths.map(
+      (p, pIndex) => pIndex === index ? path : p
+    );
+    await ctx.plugin.updateSettings({ excludedPaths }, { rebuildIndex: true });
+  });
+}
+function scheduleSourceRuleUpdate(ctx, index, patch) {
+  ctx.scheduleUpdate(`source-rule-${index}`, async () => {
+    const sourceRules = ctx.plugin.settings.sourceRules.map(
+      (rule, ruleIndex) => ruleIndex === index ? {
+        path: patch.path !== void 0 ? patch.path : rule.path,
+        category: patch.category !== void 0 ? patch.category : rule.category
+      } : rule
+    );
+    await ctx.plugin.updateSettings({ sourceRules }, { rebuildIndex: true });
+  });
+}
+
+// src/UI/Settings/SchedulingSection.ts
 function isCalendarEntryMode(value) {
   return Object.prototype.hasOwnProperty.call(INCLUDE_EVENTS_OR_TODOS, value);
 }
 function isMultipleDateMode(value) {
   return Object.prototype.hasOwnProperty.call(HOW_TO_PROCESS_MULTIPLE_DATES, value);
 }
+function renderDateSettings(ctx, containerEl) {
+  const { plugin, runAsync, addSection } = ctx;
+  const sectionEl = addSection(containerEl, "scheduling", "calendar-days", "Scheduling and alarms");
+  const body = sectionEl.createDiv({ cls: "ical-pro-section-body" });
+  new import_obsidian4.Setting(body).setName("Time-block logic (day planner)").setDesc("If enabled, treats daily note headings as dates and task times as event start points.").addToggle(
+    (toggle) => toggle.setValue(plugin.settings.isDayPlannerPluginFormatEnabled).onChange((value) => {
+      runAsync(() => plugin.updateSettings(
+        { isDayPlannerPluginFormatEnabled: value },
+        { rebuildIndex: true }
+      ));
+    })
+  );
+  new import_obsidian4.Setting(body).setName("Sync strategy").setDesc("Define how dated tasks are mapped. Events are time-boxed; to-dos are status-tracked.").addDropdown((dropdown) => {
+    Object.entries(INCLUDE_EVENTS_OR_TODOS).forEach(([value, label]) => {
+      dropdown.addOption(value, label);
+    });
+    dropdown.setValue(plugin.settings.includeEventsOrTodos).onChange((value) => {
+      if (isCalendarEntryMode(value)) {
+        void plugin.updateSettings({ includeEventsOrTodos: value });
+      }
+    });
+  });
+  new import_obsidian4.Setting(body).setName("Multiple date handling").setDesc("How to handle tasks that contain multiple start, scheduled, or due dates.").addDropdown((dropdown) => {
+    Object.entries(HOW_TO_PROCESS_MULTIPLE_DATES).forEach(([value, label]) => {
+      dropdown.addOption(value, label);
+    });
+    dropdown.setValue(plugin.settings.howToProcessMultipleDates).onChange((value) => {
+      if (isMultipleDateMode(value)) {
+        void plugin.updateSettings({ howToProcessMultipleDates: value });
+      }
+    });
+  });
+  const alarmSetting = new import_obsidian4.Setting(body).setName("Enable native notifications").setDesc("Include alerts in your calendar app. Use the alarm emoji with a minute offset to set a custom reminder.").addToggle(
+    (toggle) => toggle.setValue(plugin.settings.enableAlarms).onChange((value) => {
+      runAsync(() => plugin.updateSettings({ enableAlarms: value }));
+      alarmSetting.settingEl.classList.toggle("is-off", !value);
+    })
+  ).addSlider(
+    (slider) => slider.setLimits(5, 180, 5).setDynamicTooltip().setValue(plugin.settings.defaultAlarmOffset).onChange((value) => {
+      runAsync(() => plugin.updateSettings({ defaultAlarmOffset: value }));
+    })
+  );
+  if (!plugin.settings.enableAlarms) alarmSetting.settingEl.classList.add("is-off");
+  alarmSetting.settingEl.classList.add("ical-slider-row");
+}
+
+// src/UI/Settings/FilteringSection.ts
+function renderFilteringSettings(ctx, containerEl) {
+  const { plugin, scheduleUpdate, runAsync, addSection } = ctx;
+  const sectionEl = addSection(containerEl, "filtering", "filter", "Content and filters");
+  const body = sectionEl.createDiv({ cls: "ical-pro-section-body" });
+  const globalFilter = new import_obsidian4.Setting(body).setName("Respect tasks global filter").setDesc("Only treat checkboxes as tasks if they contain one of these tags. Matches the Obsidian Tasks plugin global filter.").addToggle(
+    (toggle) => toggle.setValue(plugin.settings.respectGlobalTaskFilter).onChange((value) => {
+      runAsync(() => plugin.updateSettings({ respectGlobalTaskFilter: value }, { rebuildIndex: true }));
+      globalFilter.settingEl.classList.toggle("is-off", !value);
+    })
+  ).addText(
+    (text) => text.setPlaceholder("#task").setValue(plugin.settings.globalTaskFilterTags).onChange((value) => {
+      scheduleUpdate(
+        "globalTaskFilterTags",
+        () => plugin.updateSettings(
+          { globalTaskFilterTags: value || "#task" },
+          { rebuildIndex: true }
+        )
+      );
+    })
+  );
+  if (!plugin.settings.respectGlobalTaskFilter) globalFilter.settingEl.classList.add("is-off");
+  globalFilter.settingEl.classList.add("ical-filter-row");
+  const catInclude = new import_obsidian4.Setting(body).setName("Category inclusion filter").setDesc("Only export tasks in these categories. Separate multiple values with spaces (e.g. Work travel/asia).").addToggle(
+    (toggle) => toggle.setValue(plugin.settings.isIncludeCategoriesEnabled).onChange((value) => {
+      runAsync(() => plugin.updateSettings({ isIncludeCategoriesEnabled: value }, { rebuildIndex: true }));
+      catInclude.settingEl.classList.toggle("is-off", !value);
+    })
+  ).addText(
+    (text) => text.setPlaceholder("Work travel/asia").setValue(plugin.settings.includeCategories).onChange((value) => {
+      scheduleUpdate(
+        "includeCategories",
+        () => plugin.updateSettings(
+          { includeCategories: value },
+          { rebuildIndex: true }
+        )
+      );
+    })
+  );
+  if (!plugin.settings.isIncludeCategoriesEnabled) catInclude.settingEl.classList.add("is-off");
+  catInclude.settingEl.classList.add("ical-filter-row");
+  const catExclude = new import_obsidian4.Setting(body).setName("Category exclusion filter").setDesc("Hide tasks whose derived categories match these values. Separate with spaces (e.g. Personal archive).").addToggle(
+    (toggle) => toggle.setValue(plugin.settings.isExcludeCategoriesEnabled).onChange((value) => {
+      runAsync(() => plugin.updateSettings({ isExcludeCategoriesEnabled: value }, { rebuildIndex: true }));
+      catExclude.settingEl.classList.toggle("is-off", !value);
+    })
+  ).addText(
+    (text) => text.setPlaceholder("Personal archive").setValue(plugin.settings.excludeCategories).onChange((value) => {
+      scheduleUpdate(
+        "excludeCategories",
+        () => plugin.updateSettings(
+          { excludeCategories: value },
+          { rebuildIndex: true }
+        )
+      );
+    })
+  );
+  if (!plugin.settings.isExcludeCategoriesEnabled) catExclude.settingEl.classList.add("is-off");
+  catExclude.settingEl.classList.add("ical-filter-row");
+  const tagInclude = new import_obsidian4.Setting(body).setName("Tag inclusion filter").setDesc("Only sync tasks that have one of these tags. Use # prefix, separate with spaces (e.g. #work #sync).").addToggle(
+    (toggle) => toggle.setValue(plugin.settings.isIncludeTasksWithTags).onChange((value) => {
+      runAsync(() => plugin.updateSettings(
+        { isIncludeTasksWithTags: value },
+        { rebuildIndex: true }
+      ));
+      tagInclude.settingEl.classList.toggle("is-off", !value);
+    })
+  ).addText(
+    (text) => text.setPlaceholder("#work #sync").setValue(plugin.settings.includeTasksWithTags).onChange((value) => {
+      scheduleUpdate(
+        "includeTasksWithTags",
+        () => plugin.updateSettings(
+          { includeTasksWithTags: value },
+          { rebuildIndex: true }
+        )
+      );
+    })
+  );
+  if (!plugin.settings.isIncludeTasksWithTags) tagInclude.settingEl.classList.add("is-off");
+  tagInclude.settingEl.classList.add("ical-filter-row");
+  const tagExclude = new import_obsidian4.Setting(body).setName("Tag exclusion filter").setDesc("Skip tasks that have any of these tags. Use # prefix (e.g. #private #draft).").addToggle(
+    (toggle) => toggle.setValue(plugin.settings.isExcludeTasksWithTags).onChange((value) => {
+      runAsync(() => plugin.updateSettings(
+        { isExcludeTasksWithTags: value },
+        { rebuildIndex: true }
+      ));
+      tagExclude.settingEl.classList.toggle("is-off", !value);
+    })
+  ).addText(
+    (text) => text.setPlaceholder("#private").setValue(plugin.settings.excludeTasksWithTags).onChange((value) => {
+      scheduleUpdate(
+        "excludeTasksWithTags",
+        () => plugin.updateSettings(
+          { excludeTasksWithTags: value },
+          { rebuildIndex: true }
+        )
+      );
+    })
+  );
+  if (!plugin.settings.isExcludeTasksWithTags) tagExclude.settingEl.classList.add("is-off");
+  tagExclude.settingEl.classList.add("ical-filter-row");
+  new import_obsidian4.Setting(body).setName("Ignore completed").setDesc("Do not sync tasks that are already marked as done.").addToggle(
+    (toggle) => toggle.setValue(plugin.settings.ignoreCompletedTasks).onChange((value) => {
+      runAsync(() => plugin.updateSettings({ ignoreCompletedTasks: value }, { rebuildIndex: true }));
+    })
+  );
+}
+
+// src/UI/Settings/AdvancedSection.ts
 function isInternalLinkMode(value) {
   return Object.prototype.hasOwnProperty.call(HOW_TO_PARSE_INTERNAL_LINKS, value);
 }
 function isLinkPlacement(value) {
   return Object.prototype.hasOwnProperty.call(LINK_PLACEMENT, value);
 }
-var SettingsTab = class extends import_obsidian4.PluginSettingTab {
+function renderAdvancedSettings(ctx, containerEl) {
+  const { plugin, runAsync, addSection } = ctx;
+  const sectionEl = addSection(containerEl, "advanced", "sliders", "Advanced and diagnostics", true);
+  const body = sectionEl.createDiv({ cls: "ical-pro-section-body" });
+  new import_obsidian4.Setting(body).setName("Summary formatting").setDesc("How [[wikilinks]] in task text appear in the calendar summary. Keep: use explicit display name if set. Prefer: always use note title. Remove: strip links, keep text only.").addDropdown((dropdown) => {
+    Object.entries(HOW_TO_PARSE_INTERNAL_LINKS).forEach(([value, label]) => {
+      dropdown.addOption(value, label);
+    });
+    dropdown.setValue(plugin.settings.howToParseInternalLinks).onChange((value) => {
+      if (isInternalLinkMode(value)) {
+        void plugin.updateSettings(
+          { howToParseInternalLinks: value },
+          { rebuildIndex: true }
+        );
+      }
+    });
+  });
+  new import_obsidian4.Setting(body).setName("Obsidian link placement").setDesc("Where to place the app callback link in calendar entries.").addDropdown((dropdown) => {
+    Object.entries(LINK_PLACEMENT).forEach(([value, label]) => {
+      dropdown.addOption(value, label);
+    });
+    dropdown.setValue(plugin.settings.linkPlacement).onChange((value) => {
+      if (isLinkPlacement(value)) {
+        void plugin.updateSettings({ linkPlacement: value });
+      }
+    });
+  });
+  const autoSyncSetting = new import_obsidian4.Setting(body).setName("Auto-sync interval").setDesc("Frequency (in minutes) at which the calendar is regenerated and pushed.").addToggle(
+    (toggle) => toggle.setValue(plugin.settings.isPeriodicSaveEnabled).onChange((value) => {
+      runAsync(() => plugin.updateSettings({ isPeriodicSaveEnabled: value }, { rescheduleSync: true }));
+      autoSyncSetting.settingEl.classList.toggle("is-off", !value);
+    })
+  ).addSlider(
+    (slider) => slider.setLimits(5, 120, 5).setDynamicTooltip().setValue(plugin.settings.periodicSaveInterval).onChange((value) => {
+      runAsync(() => plugin.updateSettings({ periodicSaveInterval: value }, { rescheduleSync: true }));
+    })
+  );
+  if (!plugin.settings.isPeriodicSaveEnabled) autoSyncSetting.settingEl.classList.add("is-off");
+  autoSyncSetting.settingEl.classList.add("ical-slider-row");
+  new import_obsidian4.Setting(body).setName("Debug mode").setDesc("Enable verbose logging in the console (Ctrl+Shift+I).").addToggle(
+    (toggle) => toggle.setValue(plugin.settings.isDebug).onChange((value) => {
+      runAsync(() => plugin.updateSettings({ isDebug: value }));
+    })
+  );
+  body.createEl("p", {
+    text: "These settings were previously only accessible by editing data.json manually.",
+    cls: "setting-item-description ical-pro-hint"
+  });
+  new import_obsidian4.Setting(body).setName("Dateless tasks as todos").setDesc("When using 'Events and todo items' mode, only tasks without any date are exported as VTODO. Tasks with dates always become VEVENT.").addToggle(
+    (toggle) => toggle.setValue(plugin.settings.isOnlyTasksWithoutDatesAreTodos).onChange((value) => {
+      runAsync(() => plugin.updateSettings({ isOnlyTasksWithoutDatesAreTodos: value }));
+    })
+  );
+  const ignoreOldSetting = new import_obsidian4.Setting(body).setName("Ignore old tasks").setDesc("Skip tasks whose dates are older than the threshold below.").addToggle(
+    (toggle) => toggle.setValue(plugin.settings.ignoreOldTasks).onChange((value) => {
+      runAsync(() => plugin.updateSettings({ ignoreOldTasks: value }, { rebuildIndex: true }));
+      ignoreOldSetting.settingEl.classList.toggle("is-off", !value);
+    })
+  ).addSlider(
+    (slider) => slider.setLimits(7, 730, 1).setDynamicTooltip().setValue(plugin.settings.oldTaskInDays).onChange((value) => {
+      runAsync(() => plugin.updateSettings({ oldTaskInDays: value }, { rebuildIndex: true }));
+    })
+  );
+  if (!plugin.settings.ignoreOldTasks) ignoreOldSetting.settingEl.classList.add("is-off");
+  ignoreOldSetting.settingEl.classList.add("ical-slider-row");
+  body.createEl("p", {
+    text: "The status card above also provides a live sync preview, per-destination result report, and a copyable diagnostics bundle for issue reports.",
+    cls: "setting-item-description"
+  });
+}
+
+// src/UI/Settings/SupportSection.ts
+function renderSupportSection(ctx, containerEl) {
+  const sectionEl = ctx.addSection(containerEl, "support", "heart", "Support the project", true);
+  const body = sectionEl.createDiv({ cls: "ical-pro-section-body" });
+  const supportDiv = body.createDiv({ cls: "ical-pro-support" });
+  supportDiv.createEl("p", {
+    text: "If this plugin helps you stay organized, consider supporting its development.",
+    cls: "setting-item-description"
+  });
+  const kofiLink = supportDiv.createEl("a", {
+    href: "https://ko-fi.com/F1F7WYJ6B"
+  });
+  kofiLink.createEl("img", {
+    attr: {
+      src: "https://ko-fi.com/img/githubbutton_sm.svg",
+      alt: "ko-fi"
+    },
+    cls: "ical-pro-kofi-img"
+  });
+}
+
+// src/UI/SettingsTab.ts
+var SettingsTab = class extends import_obsidian8.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     __publicField(this, "plugin", plugin);
@@ -1818,7 +2451,7 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
     containerEl.empty();
     const header = containerEl.createDiv({ cls: "ical-pro-header" });
     const headerText = header.createDiv({ cls: "ical-pro-header-title" });
-    new import_obsidian4.Setting(headerText).setHeading().setName(this.plugin.manifest.name).setDesc("v" + this.plugin.manifest.version);
+    new import_obsidian8.Setting(headerText).setHeading().setName(this.plugin.manifest.name).setDesc("v" + this.plugin.manifest.version);
     const authorInfo = header.createDiv({ cls: "ical-pro-author" });
     authorInfo.createSpan({ text: "by " });
     authorInfo.createEl("a", {
@@ -1832,466 +2465,31 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
       href: "https://github.com/liuh886/obsidian-ical-plugin-pro",
       cls: "ical-pro-repo-link"
     });
-    this.renderStatusCard(containerEl);
-    this.renderSupportSection(containerEl);
-    this.renderDestinationSettings(containerEl);
-    this.renderTaskSourceSettings(containerEl);
-    this.renderDateSettings(containerEl);
-    this.renderFilteringSettings(containerEl);
-    this.renderAdvancedSettings(containerEl);
-  }
-  renderSupportSection(parent) {
-    const containerEl = this.addSection(parent, "support", "heart", "Support the project");
-    const supportDiv = containerEl.createDiv({ cls: "ical-pro-support" });
-    supportDiv.createEl("p", {
-      text: "If this plugin helps you stay organized, consider supporting its development.",
-      cls: "setting-item-description"
-    });
-    const kofiLink = supportDiv.createEl("a", {
-      href: "https://ko-fi.com/F1F7WYJ6B"
-    });
-    kofiLink.createEl("img", {
-      attr: {
-        src: "https://ko-fi.com/img/githubbutton_sm.svg",
-        alt: "ko-fi"
-      },
-      cls: "ical-pro-kofi-img"
-    });
-  }
-  refreshStatusCard() {
-    const existing = this.containerEl.querySelector(".ical-pro-status-card");
-    if (!existing) return;
-    existing.empty();
-    this.renderStatusCardContent(existing);
-  }
-  renderStatusCard(containerEl) {
-    const statusCard = containerEl.createDiv({ cls: "ical-pro-status-card" });
-    this.renderStatusCardContent(statusCard);
-  }
-  renderStatusCardContent(statusCard) {
-    const statusGrid = statusCard.createDiv({ cls: "ical-pro-status-grid" });
-    const urlCol = statusGrid.createDiv({ cls: "ical-pro-status-col" });
-    const statusTitle = urlCol.createDiv({ cls: "ical-pro-card-title" });
-    (0, import_obsidian4.setIcon)(statusTitle, "link");
-    statusTitle.createSpan({ text: " Subscription url" });
-    const urlContainer = urlCol.createDiv({ cls: "ical-url-container" });
-    this.renderUrl(urlContainer);
-    const syncCol = statusGrid.createDiv({ cls: "ical-pro-status-col" });
-    const syncTitle = syncCol.createDiv({ cls: "ical-pro-card-title" });
-    (0, import_obsidian4.setIcon)(syncTitle, "refresh-cw");
-    syncTitle.createSpan({ text: " Sync status" });
-    const syncInfo = syncCol.createDiv({ cls: "ical-sync-info" });
-    const resultRow = syncInfo.createDiv({ cls: "ical-sync-result" });
-    const statusClass = `ical-status-${this.plugin.lastSyncStatus.toLowerCase().replace(/\s+/g, "-")}`;
-    resultRow.createSpan({ text: this.plugin.lastSyncStatus, cls: statusClass });
-    resultRow.createSpan({ text: this.plugin.lastSyncTime, cls: "ical-sync-time" });
-    if (this.plugin.lastSyncMessage) {
-      syncInfo.createEl("div", { text: this.plugin.lastSyncMessage, cls: "ical-sync-detail" });
-    }
-    const readiness = this.plugin.getSyncReadiness();
-    if (readiness.ready) {
-      syncInfo.createEl("div", { text: `Ready: ${readiness.activeDestinations.join(", ")}`, cls: "ical-sync-detail" });
-    } else {
-      readiness.issues.forEach((issue) => {
-        syncInfo.createEl("div", { text: issue, cls: "ical-sync-detail ical-sync-issue" });
-      });
-      const guidance = this.plugin.getRecommendedNextStep();
-      if (guidance && guidance !== "No destination issues detected.") {
-        const guidanceEl = syncCol.createDiv({ cls: "ical-pro-guidance" });
-        (0, import_obsidian4.setIcon)(guidanceEl, "lightbulb");
-        guidanceEl.createSpan({ text: guidance });
-      }
-    }
-    const preview = this.plugin.getSyncPreview();
-    const previewRow = syncInfo.createDiv({ cls: "ical-sync-preview" });
-    previewRow.createSpan({ text: `${preview.exportedTaskCount}`, cls: "ical-preview-count" });
-    previewRow.createSpan({ text: ` to export ` });
-    previewRow.createSpan({ text: `(${preview.eventCount} events, ${preview.todoCount} todos)`, cls: "ical-sync-time" });
-    if (preview.filteredTaskCount > 0) {
-      const filteredRow = syncInfo.createDiv({ cls: "ical-sync-detail" });
-      filteredRow.createSpan({ text: `${preview.filteredTaskCount} filtered` });
-      preview.filteredReasons.forEach((entry) => {
-        syncInfo.createEl("div", { text: `${entry.reason} (${entry.count})`, cls: "ical-sync-sub" });
-      });
-    }
-    const recentResult = this.plugin.syncHistory[0];
-    if (recentResult == null ? void 0 : recentResult.destinationResults.length) {
-      syncInfo.createDiv({ cls: "ical-sync-divider" });
-      recentResult.destinationResults.forEach((result) => {
-        const row = syncInfo.createDiv({ cls: `ical-sync-dest ical-dest-${result.status}` });
-        row.createSpan({ text: result.name, cls: "ical-dest-name" });
-        row.createSpan({ text: result.status });
-        if (result.message) {
-          row.createSpan({ text: ` \u2014 ${result.message}`, cls: "ical-sync-time" });
-        }
-      });
-    }
-    const syncBtn = syncCol.createEl("button", { text: "Sync now", cls: "mod-cta ical-sync-button" });
-    syncBtn.onClickEvent(() => {
-      this.runAsync(async () => {
-        syncBtn.disabled = true;
-        syncBtn.setText("Syncing...");
-        syncBtn.removeClass("ical-sync-success", "ical-sync-fail");
-        try {
-          await this.plugin.saveCalendar();
-          syncBtn.setText("Synced!");
-          syncBtn.addClass("ical-sync-success");
-        } catch (e) {
-          syncBtn.setText("Failed");
-          syncBtn.addClass("ical-sync-fail");
-        } finally {
-          window.setTimeout(() => this.refreshStatusCard(), 1500);
-        }
-      });
-    });
-    const diagnosticsBtn = syncCol.createEl("button", { text: "Copy diagnostics", cls: "ical-sync-button" });
-    diagnosticsBtn.title = "Copies settings, readiness, preview, and recent sync results for issue reports.";
-    diagnosticsBtn.onClickEvent(() => {
-      void navigator.clipboard.writeText(this.plugin.getDiagnosticsBundle());
-      new import_obsidian4.Notice("Diagnostics copied.");
-    });
-  }
-  renderTaskSourceSettings(parent) {
-    const containerEl = this.addSection(parent, "scope", "search", "Scope and discovery");
-    containerEl.createEl("p", {
-      text: "Bind one source path to one category. Use multiple rules when you want different folders exported as different calendar categories.",
-      cls: "setting-item-description"
-    });
-    const rulesContainer = containerEl.createDiv({ cls: "ical-pro-source-rules" });
-    this.plugin.settings.sourceRules.forEach((rule, index) => {
-      this.renderSourceRuleSetting(rulesContainer, rule, index);
-    });
-    if (this.plugin.settings.sourceRules.length === 1 && !this.plugin.settings.sourceRules[0].category) {
-      containerEl.createEl("p", {
-        text: "Currently scanning entire vault with no category. Add rules to assign categories to specific folders for calendar filtering.",
-        cls: "setting-item-description ical-pro-hint"
-      });
-    }
-    new import_obsidian4.Setting(containerEl).setName("Add source path").setDesc("Add another path/category rule.").addButton(
-      (button) => button.setIcon("plus").setButtonText("Add path").onClick(() => {
-        this.runAsync(async () => {
-          await this.plugin.updateSettings(
-            {
-              sourceRules: [...this.plugin.settings.sourceRules, { path: "/", category: "" }]
-            },
-            { rebuildIndex: true }
-          );
-          this.display();
-        });
-      })
-    );
-    containerEl.createEl("p", {
-      text: "Specify folders or files to explicitly ignore. Tasks in these paths will never be indexed.",
-      cls: "setting-item-description"
-    });
-    const excludedContainer = containerEl.createDiv({ cls: "ical-pro-excluded-paths" });
-    this.plugin.settings.excludedPaths.forEach((path, index) => {
-      this.renderExcludedPathSetting(excludedContainer, path, index);
-    });
-    new import_obsidian4.Setting(containerEl).setName("Add excluded path").setDesc("Add another folder or file to ignore.").addButton(
-      (button) => button.setIcon("plus").setButtonText("Add exclusion").onClick(() => {
-        this.runAsync(async () => {
-          await this.plugin.updateSettings(
-            {
-              excludedPaths: [...this.plugin.settings.excludedPaths, "/"]
-            },
-            { rebuildIndex: true }
-          );
-          this.display();
-        });
-      })
-    );
-  }
-  renderDateSettings(parent) {
-    const containerEl = this.addSection(parent, "scheduling", "calendar-days", "Scheduling and alarms");
-    new import_obsidian4.Setting(containerEl).setName("Time-block logic (day planner)").setDesc("If enabled, treats daily note headings as dates and task times as event start points.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.isDayPlannerPluginFormatEnabled).onChange((value) => {
-        this.runAsync(() => this.plugin.updateSettings(
-          { isDayPlannerPluginFormatEnabled: value },
-          { rebuildIndex: true }
-        ));
-      })
-    );
-    new import_obsidian4.Setting(containerEl).setName("Sync strategy").setDesc("Define how dated tasks are mapped. Events are time-boxed; to-dos are status-tracked.").addDropdown((dropdown) => {
-      Object.entries(INCLUDE_EVENTS_OR_TODOS).forEach(([value, label]) => {
-        dropdown.addOption(value, label);
-      });
-      dropdown.setValue(this.plugin.settings.includeEventsOrTodos).onChange((value) => {
-        if (isCalendarEntryMode(value)) {
-          void this.plugin.updateSettings({ includeEventsOrTodos: value });
-        }
-      });
-    });
-    new import_obsidian4.Setting(containerEl).setName("Multiple date handling").setDesc("How to handle tasks that contain multiple start, scheduled, or due dates.").addDropdown((dropdown) => {
-      Object.entries(HOW_TO_PROCESS_MULTIPLE_DATES).forEach(([value, label]) => {
-        dropdown.addOption(value, label);
-      });
-      dropdown.setValue(this.plugin.settings.howToProcessMultipleDates).onChange((value) => {
-        if (isMultipleDateMode(value)) {
-          void this.plugin.updateSettings({ howToProcessMultipleDates: value });
-        }
-      });
-    });
-    const alarmSetting = new import_obsidian4.Setting(containerEl).setName("Enable native notifications").setDesc("Include alerts in your calendar app. Use the alarm emoji with a minute offset to set a custom reminder.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.enableAlarms).onChange((value) => {
-        this.runAsync(() => this.plugin.updateSettings({ enableAlarms: value }));
-        alarmSetting.settingEl.classList.toggle("is-off", !value);
-      })
-    ).addSlider(
-      (slider) => slider.setLimits(5, 180, 5).setDynamicTooltip().setValue(this.plugin.settings.defaultAlarmOffset).onChange((value) => {
-        this.runAsync(() => this.plugin.updateSettings({ defaultAlarmOffset: value }));
-      })
-    );
-    if (!this.plugin.settings.enableAlarms) alarmSetting.settingEl.classList.add("is-off");
-    alarmSetting.settingEl.classList.add("ical-slider-row");
-  }
-  renderFilteringSettings(parent) {
-    const containerEl = this.addSection(parent, "filtering", "filter", "Content and filters");
-    const globalFilter = new import_obsidian4.Setting(containerEl).setName("Respect tasks global filter").setDesc("Only treat checkboxes as tasks if they contain one of these tags. Matches the Obsidian Tasks plugin global filter.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.respectGlobalTaskFilter).onChange((value) => {
-        this.runAsync(() => this.plugin.updateSettings({ respectGlobalTaskFilter: value }, { rebuildIndex: true }));
-        globalFilter.settingEl.classList.toggle("is-off", !value);
-      })
-    ).addText(
-      (text) => text.setPlaceholder("#task").setValue(this.plugin.settings.globalTaskFilterTags).onChange((value) => {
-        this.scheduleUpdate(
-          "globalTaskFilterTags",
-          () => this.plugin.updateSettings(
-            { globalTaskFilterTags: value || "#task" },
-            { rebuildIndex: true }
-          )
-        );
-      })
-    );
-    if (!this.plugin.settings.respectGlobalTaskFilter) globalFilter.settingEl.classList.add("is-off");
-    globalFilter.settingEl.classList.add("ical-filter-row");
-    const catInclude = new import_obsidian4.Setting(containerEl).setName("Category inclusion filter").setDesc("Only export tasks in these categories. Separate multiple values with spaces (e.g. Work travel/asia).").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.isIncludeCategoriesEnabled).onChange((value) => {
-        this.runAsync(() => this.plugin.updateSettings({ isIncludeCategoriesEnabled: value }, { rebuildIndex: true }));
-        catInclude.settingEl.classList.toggle("is-off", !value);
-      })
-    ).addText(
-      (text) => text.setPlaceholder("Work travel/asia").setValue(this.plugin.settings.includeCategories).onChange((value) => {
-        this.scheduleUpdate(
-          "includeCategories",
-          () => this.plugin.updateSettings(
-            { includeCategories: value },
-            { rebuildIndex: true }
-          )
-        );
-      })
-    );
-    if (!this.plugin.settings.isIncludeCategoriesEnabled) catInclude.settingEl.classList.add("is-off");
-    catInclude.settingEl.classList.add("ical-filter-row");
-    const catExclude = new import_obsidian4.Setting(containerEl).setName("Category exclusion filter").setDesc("Hide tasks whose derived categories match these values. Separate with spaces (e.g. Personal archive).").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.isExcludeCategoriesEnabled).onChange((value) => {
-        this.runAsync(() => this.plugin.updateSettings({ isExcludeCategoriesEnabled: value }, { rebuildIndex: true }));
-        catExclude.settingEl.classList.toggle("is-off", !value);
-      })
-    ).addText(
-      (text) => text.setPlaceholder("Personal archive").setValue(this.plugin.settings.excludeCategories).onChange((value) => {
-        this.scheduleUpdate(
-          "excludeCategories",
-          () => this.plugin.updateSettings(
-            { excludeCategories: value },
-            { rebuildIndex: true }
-          )
-        );
-      })
-    );
-    if (!this.plugin.settings.isExcludeCategoriesEnabled) catExclude.settingEl.classList.add("is-off");
-    catExclude.settingEl.classList.add("ical-filter-row");
-    const tagInclude = new import_obsidian4.Setting(containerEl).setName("Tag inclusion filter").setDesc("Only sync tasks that have one of these tags. Use # prefix, separate with spaces (e.g. #work #sync).").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.isIncludeTasksWithTags).onChange((value) => {
-        this.runAsync(() => this.plugin.updateSettings(
-          { isIncludeTasksWithTags: value },
-          { rebuildIndex: true }
-        ));
-        tagInclude.settingEl.classList.toggle("is-off", !value);
-      })
-    ).addText(
-      (text) => text.setPlaceholder("#work #sync").setValue(this.plugin.settings.includeTasksWithTags).onChange((value) => {
-        this.scheduleUpdate(
-          "includeTasksWithTags",
-          () => this.plugin.updateSettings(
-            { includeTasksWithTags: value },
-            { rebuildIndex: true }
-          )
-        );
-      })
-    );
-    if (!this.plugin.settings.isIncludeTasksWithTags) tagInclude.settingEl.classList.add("is-off");
-    tagInclude.settingEl.classList.add("ical-filter-row");
-    const tagExclude = new import_obsidian4.Setting(containerEl).setName("Tag exclusion filter").setDesc("Skip tasks that have any of these tags. Use # prefix (e.g. #private #draft).").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.isExcludeTasksWithTags).onChange((value) => {
-        this.runAsync(() => this.plugin.updateSettings(
-          { isExcludeTasksWithTags: value },
-          { rebuildIndex: true }
-        ));
-        tagExclude.settingEl.classList.toggle("is-off", !value);
-      })
-    ).addText(
-      (text) => text.setPlaceholder("#private").setValue(this.plugin.settings.excludeTasksWithTags).onChange((value) => {
-        this.scheduleUpdate(
-          "excludeTasksWithTags",
-          () => this.plugin.updateSettings(
-            { excludeTasksWithTags: value },
-            { rebuildIndex: true }
-          )
-        );
-      })
-    );
-    if (!this.plugin.settings.isExcludeTasksWithTags) tagExclude.settingEl.classList.add("is-off");
-    tagExclude.settingEl.classList.add("ical-filter-row");
-    new import_obsidian4.Setting(containerEl).setName("Ignore completed").setDesc("Do not sync tasks that are already marked as done.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.ignoreCompletedTasks).onChange((value) => {
-        this.runAsync(() => this.plugin.updateSettings({ ignoreCompletedTasks: value }, { rebuildIndex: true }));
-      })
-    );
-  }
-  renderDestinationSettings(parent) {
-    const containerEl = this.addSection(parent, "destination", "cloud", "Sync and cloud connectivity");
-    new import_obsidian4.Setting(containerEl).setName("Calendar filename").setDesc("Used for both local storage and hosted gist sync, for example calendar.ics.").addText(
-      (text) => text.setPlaceholder("Calendar.ics").setValue(this.plugin.settings.filename).onChange((value) => {
-        this.scheduleUpdate("filename", async () => {
-          await this.plugin.updateSettings({ filename: value || "obsidian.ics" });
-          this.updateUrlDisplay();
-        });
-      })
-    );
-    new import_obsidian4.Setting(containerEl).setName("Save to local file").setDesc("Export the .ics file to your vault for local sync workflows.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.isSaveToFileEnabled).onChange((value) => {
-        this.runAsync(async () => {
-          await this.plugin.updateSettings({ isSaveToFileEnabled: value });
-          localFileDiv.classList.toggle("is-hidden", !value);
-        });
-      })
-    );
-    const localFileDiv = containerEl.createDiv({
-      cls: `ical-pro-conditional${this.plugin.settings.isSaveToFileEnabled ? "" : " is-hidden"}`
-    });
-    new import_obsidian4.Setting(localFileDiv).setName("Vault storage path").setDesc("Specify the folder for the local .ics file relative to vault root.").addText((text) => {
-      new FolderSuggest(this.app, text.inputEl);
-      text.setValue(this.plugin.settings.savePath).onChange((value) => {
-        this.scheduleUpdate(
-          "savePath",
-          () => this.plugin.updateSettings({ savePath: (0, import_obsidian4.normalizePath)(value) || "/" })
-        );
-      });
-    });
-    new import_obsidian4.Setting(containerEl).setName("Sync to hosted gist").setDesc("Publish your calendar to a private gist for subscriptions across devices.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.isSaveToGistEnabled).onChange((value) => {
-        this.runAsync(async () => {
-          await this.plugin.updateSettings({ isSaveToGistEnabled: value });
-          gistDiv.classList.toggle("is-hidden", !value);
-          this.updateUrlDisplay();
-        });
-      })
-    );
-    const gistDiv = containerEl.createDiv({
-      cls: `ical-pro-conditional${this.plugin.settings.isSaveToGistEnabled ? "" : " is-hidden"}`
-    });
-    new import_obsidian4.Setting(gistDiv).setName("GitHub username").setDesc("Used to build the raw subscription link for your hosted gist.").addText(
-      (text) => text.setValue(this.plugin.settings.githubUsername).onChange((value) => {
-        this.scheduleUpdate("githubUsername", async () => {
-          await this.plugin.updateSettings({ githubUsername: value });
-          this.updateUrlDisplay();
-        });
-      })
-    );
-    new import_obsidian4.Setting(gistDiv).setName("Gist ID").setDesc(this.createDescriptionWithLink(
-      "Enter the identifier from the gist link used as the sync target. ",
-      "Open Gist",
-      "https://gist.github.com/"
-    )).addText(
-      (text) => text.setValue(this.plugin.settings.githubGistId).onChange((value) => {
-        this.scheduleUpdate("githubGistId", async () => {
-          await this.plugin.updateSettings({ githubGistId: value });
-          this.updateUrlDisplay();
-        });
-      })
-    );
-    new import_obsidian4.Setting(gistDiv).setName("Personal access token").setDesc(this.createDescriptionWithLink(
-      "Personal access token with 'gist' scope. ",
-      "Create token",
-      "https://docs.github.com/en/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token"
-    )).addText(
-      (text) => text.setPlaceholder("Paste access token").setValue(this.plugin.settings.githubPersonalAccessToken).onChange((value) => {
-        this.scheduleUpdate(
-          "githubPersonalAccessToken",
-          () => this.plugin.updateSettings({ githubPersonalAccessToken: value })
-        );
-      }).inputEl.setAttribute("type", "password")
-    );
-    new import_obsidian4.Setting(gistDiv).setName("Validate gist access").setDesc("Check whether the configured token and identifier are reachable.").addButton(
-      (button) => button.setButtonText("Validate").onClick(() => {
-        this.runAsync(async () => {
-          button.setDisabled(true);
-          button.setButtonText("Checking access...");
-          const result = await this.plugin.validateConnection();
-          new import_obsidian4.Notice(result.message);
-          button.setDisabled(false);
-          button.setButtonText("Validate");
-        });
-      })
-    );
-  }
-  renderAdvancedSettings(parent) {
-    const containerEl = this.addSection(parent, "advanced", "sliders", "Advanced and diagnostics", true);
-    new import_obsidian4.Setting(containerEl).setName("Summary formatting").setDesc("How [[wikilinks]] in task text appear in the calendar summary. Keep: use explicit display name if set. Prefer: always use note title. Remove: strip links, keep text only.").addDropdown((dropdown) => {
-      Object.entries(HOW_TO_PARSE_INTERNAL_LINKS).forEach(([value, label]) => {
-        dropdown.addOption(value, label);
-      });
-      dropdown.setValue(this.plugin.settings.howToParseInternalLinks).onChange((value) => {
-        if (isInternalLinkMode(value)) {
-          void this.plugin.updateSettings(
-            { howToParseInternalLinks: value },
-            { rebuildIndex: true }
-          );
-        }
-      });
-    });
-    new import_obsidian4.Setting(containerEl).setName("Obsidian link placement").setDesc("Where to place the app callback link in calendar entries.").addDropdown((dropdown) => {
-      Object.entries(LINK_PLACEMENT).forEach(([value, label]) => {
-        dropdown.addOption(value, label);
-      });
-      dropdown.setValue(this.plugin.settings.linkPlacement).onChange((value) => {
-        if (isLinkPlacement(value)) {
-          void this.plugin.updateSettings({ linkPlacement: value });
-        }
-      });
-    });
-    const autoSyncSetting = new import_obsidian4.Setting(containerEl).setName("Auto-sync interval").setDesc("Frequency (in minutes) at which the calendar is regenerated and pushed.").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.isPeriodicSaveEnabled).onChange((value) => {
-        this.runAsync(() => this.plugin.updateSettings({ isPeriodicSaveEnabled: value }, { rescheduleSync: true }));
-        autoSyncSetting.settingEl.classList.toggle("is-off", !value);
-      })
-    ).addSlider(
-      (slider) => slider.setLimits(5, 120, 5).setDynamicTooltip().setValue(this.plugin.settings.periodicSaveInterval).onChange((value) => {
-        this.runAsync(() => this.plugin.updateSettings({ periodicSaveInterval: value }, { rescheduleSync: true }));
-      })
-    );
-    if (!this.plugin.settings.isPeriodicSaveEnabled) autoSyncSetting.settingEl.classList.add("is-off");
-    autoSyncSetting.settingEl.classList.add("ical-slider-row");
-    new import_obsidian4.Setting(containerEl).setName("Debug mode").setDesc("Enable verbose logging in the console (Ctrl+Shift+I).").addToggle(
-      (toggle) => toggle.setValue(this.plugin.settings.isDebug).onChange((value) => {
-        this.runAsync(() => this.plugin.updateSettings({ isDebug: value }));
-      })
-    );
-    containerEl.createEl("p", {
-      text: "The status card above also provides a live sync preview, per-destination result report, and a copyable diagnostics bundle for issue reports.",
-      cls: "setting-item-description"
-    });
+    const ctx = {
+      app: this.app,
+      plugin: this.plugin,
+      scheduleUpdate: (key, task, delay) => this.scheduleUpdate(key, task, delay),
+      runAsync: (task) => this.runAsync(task),
+      addSection: (el, key, icon, text, defaultCollapsed) => this.addSection(el, key, icon, text, defaultCollapsed),
+      rerender: () => this.display()
+    };
+    renderStatusCard(ctx, containerEl);
+    renderDestinationSettings(ctx, containerEl);
+    renderTaskSourceSettings(ctx, containerEl);
+    renderDateSettings(ctx, containerEl);
+    renderFilteringSettings(ctx, containerEl);
+    renderAdvancedSettings(ctx, containerEl);
+    renderSupportSection(ctx, containerEl);
   }
   addSection(el, key, icon, text, defaultCollapsed = false) {
     const isCollapsed = this.collapsedSections.has(key) || defaultCollapsed && !this.collapsedSections.has(`_${key}`);
     const group = el.createDiv({ cls: `ical-pro-section-group${isCollapsed ? " is-collapsed" : ""}` });
     const header = group.createDiv({ cls: "ical-pro-section-header" });
     const iconEl = header.createDiv({ cls: "ical-pro-section-icon" });
-    (0, import_obsidian4.setIcon)(iconEl, icon);
+    (0, import_obsidian8.setIcon)(iconEl, icon);
     header.createEl("h3", { text, cls: "ical-pro-section-title" });
     const indicator = header.createSpan({ cls: "collapse-indicator" });
-    (0, import_obsidian4.setIcon)(indicator, "chevron-down");
+    (0, import_obsidian8.setIcon)(indicator, "chevron-down");
     header.onClickEvent((e) => {
       if (e.target.closest(".setting-item-control")) return;
       const nowCollapsed = group.classList.toggle("is-collapsed");
@@ -2304,35 +2502,6 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
       }
     });
     return group;
-  }
-  updateUrlDisplay() {
-    const container = this.containerEl.querySelector(".ical-url-container");
-    if (!container) return;
-    container.empty();
-    this.renderUrl(container);
-  }
-  renderUrl(container) {
-    const username = this.plugin.settings.githubUsername;
-    const gistId = this.plugin.settings.githubGistId;
-    const filename = this.plugin.settings.filename || "obsidian.ics";
-    const localPath = this.plugin.settings.savePath === "/" ? filename : `${this.plugin.settings.savePath}/${filename}`;
-    if (this.plugin.settings.isSaveToGistEnabled && username && gistId) {
-      const url = `https://gist.githubusercontent.com/${username}/${gistId}/raw/${filename}`;
-      container.createEl("code", { text: url, cls: "ical-url-text" });
-      const copyBtn = container.createEl("button", { text: "Copy link", cls: "mod-cta" });
-      copyBtn.onClickEvent(() => {
-        void navigator.clipboard.writeText(url);
-        copyBtn.setText("Copied.");
-        window.setTimeout(() => copyBtn.setText("Copy link"), 2e3);
-      });
-      return;
-    }
-    if (this.plugin.settings.isSaveToFileEnabled) {
-      container.createEl("code", { text: localPath, cls: "ical-url-text" });
-      container.createEl("p", { text: "Local file export is enabled. Subscribe to this file from your calendar app.", cls: "ical-url-placeholder" });
-      return;
-    }
-    container.createEl("p", { text: "No active calendar destination. Enable hosted gist sync or local file export.", cls: "ical-url-placeholder" });
   }
   scheduleUpdate(key, task, delay = 250) {
     const existing = this.pendingUpdates.get(key);
@@ -2348,114 +2517,13 @@ var SettingsTab = class extends import_obsidian4.PluginSettingTab {
   runAsync(task) {
     task().catch((error) => {
       console.error("iCal Pro settings error:", error);
-      new import_obsidian4.Notice(`iCal Pro: ${error instanceof Error ? error.message : "Unexpected error"}`);
-    });
-  }
-  createDescriptionWithLink(prefix, linkText, href) {
-    const fragment = document.createDocumentFragment();
-    fragment.append(prefix);
-    const link = document.createElement("a");
-    link.href = href;
-    link.textContent = linkText;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    fragment.append(link);
-    return fragment;
-  }
-  renderSourceRuleSetting(containerEl, rule, index) {
-    const ruleName = rule.category ? `${rule.path}  \u2192  ${rule.category}` : rule.path || `Source path ${index + 1}`;
-    const setting = new import_obsidian4.Setting(containerEl).setName(ruleName).setDesc("Tasks in this path inherit the configured category.").addText((text) => {
-      new FolderSuggest(this.app, text.inputEl);
-      text.setPlaceholder("/").setValue(rule.path).onChange((value) => {
-        this.scheduleSourceRuleUpdate(index, { path: (0, import_obsidian4.normalizePath)(value) || "/" });
-      });
-    }).addText((text) => {
-      const existingCategories = this.plugin.settings.sourceRules.map((r) => r.category);
-      new CategorySuggest(this.app, text.inputEl, existingCategories);
-      text.setPlaceholder("Work").setValue(rule.category).onChange((value) => {
-        this.scheduleSourceRuleUpdate(index, { category: value });
-      });
-    });
-    const nameEl = setting.settingEl.querySelector(".setting-item-name");
-    const inputs = setting.settingEl.querySelectorAll("input[type='text'], input:not([type])");
-    if (nameEl && inputs.length >= 2) {
-      const updateName = () => {
-        const path = inputs[0].value;
-        const category = inputs[1].value;
-        nameEl.textContent = category ? `${path}  \u2192  ${category}` : path || `Source path ${index + 1}`;
-      };
-      inputs[0].addEventListener("input", updateName);
-      inputs[1].addEventListener("input", updateName);
-    }
-    setting.addExtraButton(
-      (button) => button.setIcon("trash").setTooltip("Remove path rule").onClick(() => {
-        this.runAsync(async () => {
-          const sourceRules = this.plugin.settings.sourceRules.filter((_, ruleIndex) => ruleIndex !== index);
-          await this.plugin.updateSettings(
-            {
-              sourceRules: sourceRules.length > 0 ? sourceRules : [{ path: "/", category: "" }]
-            },
-            { rebuildIndex: true }
-          );
-          this.display();
-        });
-      })
-    );
-  }
-  renderExcludedPathSetting(containerEl, path, index) {
-    new import_obsidian4.Setting(containerEl).setName(path || `Excluded path ${index + 1}`).addText((text) => {
-      new FolderSuggest(this.app, text.inputEl);
-      text.setPlaceholder("/").setValue(path).onChange((value) => {
-        this.scheduleExcludedPathUpdate(index, (0, import_obsidian4.normalizePath)(value) || "/");
-      });
-    }).addExtraButton(
-      (button) => button.setIcon("trash").setTooltip("Remove exclusion").onClick(() => {
-        this.runAsync(async () => {
-          const excludedPaths = this.plugin.settings.excludedPaths.filter((_, pathIndex) => pathIndex !== index);
-          await this.plugin.updateSettings(
-            {
-              excludedPaths
-            },
-            { rebuildIndex: true }
-          );
-          this.display();
-        });
-      })
-    );
-  }
-  scheduleExcludedPathUpdate(index, path) {
-    this.scheduleUpdate(`excluded-path-${index}`, async () => {
-      const excludedPaths = this.plugin.settings.excludedPaths.map(
-        (p, pIndex) => pIndex === index ? path : p
-      );
-      await this.plugin.updateSettings(
-        {
-          excludedPaths
-        },
-        { rebuildIndex: true }
-      );
-    });
-  }
-  scheduleSourceRuleUpdate(index, patch) {
-    this.scheduleUpdate(`source-rule-${index}`, async () => {
-      const sourceRules = this.plugin.settings.sourceRules.map(
-        (rule, ruleIndex) => ruleIndex === index ? {
-          path: patch.path !== void 0 ? patch.path : rule.path,
-          category: patch.category !== void 0 ? patch.category : rule.category
-        } : rule
-      );
-      await this.plugin.updateSettings(
-        {
-          sourceRules
-        },
-        { rebuildIndex: true }
-      );
+      new import_obsidian8.Notice(`iCal Pro: ${error instanceof Error ? error.message : "Unexpected error"}`);
     });
   }
 };
 
 // src/ObsidianIcalPlugin.ts
-var ObsidianIcalPlugin = class extends import_obsidian5.Plugin {
+var ObsidianIcalPlugin = class extends import_obsidian9.Plugin {
   constructor() {
     super(...arguments);
     __publicField(this, "settings", DEFAULT_SETTINGS);
@@ -2467,7 +2535,7 @@ var ObsidianIcalPlugin = class extends import_obsidian5.Plugin {
     __publicField(this, "settingsStore", new PluginSettingsStore(this));
     __publicField(this, "syncReadinessService", new SyncReadinessService());
     __publicField(this, "destinationHealthService", new DestinationHealthService());
-    __publicField(this, "connectionValidationService", new ConnectionValidationService(import_obsidian5.requestUrl));
+    __publicField(this, "connectionValidationService", new ConnectionValidationService(import_obsidian9.requestUrl));
     __publicField(this, "syncAutomationService", new SyncAutomationService(this.syncReadinessService));
     __publicField(this, "diagnosticsService", new DiagnosticsService());
     __publicField(this, "icalService", new IcalService());
@@ -2536,19 +2604,19 @@ var ObsidianIcalPlugin = class extends import_obsidian5.Plugin {
     await this.saveSettings();
   }
   updateFileInIndex(file) {
-    if (!(file instanceof import_obsidian5.TFile)) return;
+    if (!(file instanceof import_obsidian9.TFile)) return;
     this.pendingFileUpdates.set(file.path, file);
     this.schedulePendingFileIndexFlush();
   }
   removeFileFromIndex(file) {
-    if (file instanceof import_obsidian5.TFile) {
+    if (file instanceof import_obsidian9.TFile) {
       this.pendingFileUpdates.delete(file.path);
       this.taskIndexService.removeFile(file.path);
       this.scheduleSettingsSave();
     }
   }
   async renameFileInIndex(file, oldPath) {
-    if (!(file instanceof import_obsidian5.TFile)) return;
+    if (!(file instanceof import_obsidian9.TFile)) return;
     this.pendingFileUpdates.delete(oldPath);
     this.pendingFileUpdates.delete(file.path);
     await this.taskIndexService.renameFile(file, oldPath, this.settings);
@@ -2656,7 +2724,7 @@ var ObsidianIcalPlugin = class extends import_obsidian5.Plugin {
       callback: () => {
         const { githubUsername, githubGistId } = this.settings;
         if (!githubUsername || !githubGistId) {
-          new import_obsidian5.Notice("GitHub sync not fully configured.");
+          new import_obsidian9.Notice("GitHub sync not fully configured.");
           return;
         }
         window.open(`https://gist.github.com/${githubUsername}/${githubGistId}`, "_blank");
@@ -2664,12 +2732,12 @@ var ObsidianIcalPlugin = class extends import_obsidian5.Plugin {
     });
   }
   async runSyncWithNotice(startMessage, successMessage) {
-    new import_obsidian5.Notice(startMessage);
+    new import_obsidian9.Notice(startMessage);
     try {
       await this.saveCalendar();
-      new import_obsidian5.Notice(successMessage);
+      new import_obsidian9.Notice(successMessage);
     } catch (e) {
-      new import_obsidian5.Notice(`iCal Pro: sync failed. ${this.lastSyncMessage}`);
+      new import_obsidian9.Notice(`iCal Pro: sync failed. ${this.lastSyncMessage}`);
     }
   }
   runAsync(task) {

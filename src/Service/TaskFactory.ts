@@ -183,16 +183,16 @@ function parsePriority(summary: string, status: TaskStatus): { summary: string; 
 }
 
 function parseRecurrenceRule(summary: string): { summary: string; rrule: string | null } {
-	const rules: Array<{ regex: RegExp; build: (match: RegExpMatchArray) => string }> = [
+	const rules: Array<{ regex: RegExp; build: (match: RegExpMatchArray) => string | null }> = [
 		{ regex: /\bevery weekday\b/i, build: () => "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR" },
 		{ regex: /\bevery weekend\b/i, build: () => "FREQ=WEEKLY;BYDAY=SA,SU" },
 		{
 			regex: /\bevery\s+(\d+)\s+weeks?\s+on\s+([a-z,\sand]+)\b/i,
-			build: (match) => `FREQ=WEEKLY;INTERVAL=${match[1]};BYDAY=${parseByDayList(match[2])}`,
+			build: (match) => { const byday = parseByDayList(match[2]); return byday ? `FREQ=WEEKLY;INTERVAL=${match[1]};BYDAY=${byday}` : null; },
 		},
 		{
 			regex: /\bevery\s+week\s+on\s+([a-z,\sand]+)\b/i,
-			build: (match) => `FREQ=WEEKLY;BYDAY=${parseByDayList(match[1])}`,
+			build: (match) => { const byday = parseByDayList(match[1]); return byday ? `FREQ=WEEKLY;BYDAY=${byday}` : null; },
 		},
 		{ regex: /\bevery\s+(\d+)\s+days?\b/i, build: (match) => `FREQ=DAILY;INTERVAL=${match[1]}` },
 		{ regex: /\bevery day\b/i, build: () => "FREQ=DAILY" },
@@ -207,10 +207,14 @@ function parseRecurrenceRule(summary: string): { summary: string; rrule: string 
 	for (const rule of rules) {
 		const match = summary.match(rule.regex);
 		if (match) {
-			return {
-				summary: summary.replace(rule.regex, "").replace(/\s{2,}/g, " ").trim(),
-				rrule: rule.build(match),
-			};
+			const cleaned = summary.replace(rule.regex, "").replace(/\s{2,}/g, " ").trim();
+			const rrule = rule.build(match);
+			if (rrule === null) {
+				// A more specific rule matched but produced no valid RRULE (e.g. unknown weekday).
+				// Do not fall through to less specific rules.
+				return { summary: cleaned, rrule: null };
+			}
+			return { summary: cleaned, rrule };
 		}
 	}
 
@@ -223,11 +227,12 @@ function parseByDayList(value: string): string {
 		.map((item) => item.trim())
 		.filter((item) => item.length > 0)
 		.map((item) => weekdayToByDay(item))
+		.filter((item): item is string => item !== null)
 		.filter((item, index, values) => values.indexOf(item) === index)
 		.join(",");
 }
 
-function weekdayToByDay(value: string): string {
+function weekdayToByDay(value: string): string | null {
 	switch (value.toLowerCase()) {
 		case "monday":
 			return "MO";
@@ -244,7 +249,7 @@ function weekdayToByDay(value: string): string {
 		case "sunday":
 			return "SU";
 		default:
-			return "MO";
+			return null;
 	}
 }
 

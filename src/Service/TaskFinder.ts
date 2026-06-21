@@ -25,7 +25,7 @@ export class TaskFinder {
 		const fileUri = `obsidian://open?vault=${encodeURIComponent(file.vault.getName())}&file=${encodeURIComponent(file.path)}`;
 		const fileDate = this.getDateFromFileName(file);
 
-		const isTaskLine = (line: string) => /(\*|-)\s*\[.?]\s*/.test(this.normalizeTaskLine(line));
+		const isTaskLine = (line: string) => /(\*|\+|-)\s*\[.?]\s*/.test(this.normalizeTaskLine(line));
 		const taskPositions = listItemsCache
 			.map((item) => item.position.start.line)
 			.filter((lineNo) => isTaskLine(lines[lineNo]));
