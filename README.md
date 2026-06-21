@@ -17,7 +17,7 @@ Manage your tasks in Markdown and expose them to Google Calendar, Apple Calendar
 iCal Pro is built with a local-first philosophy.
 - **No Data Collection**: We do not track your usage or collect any personal data.
 - **Direct Sync**: Your calendar is synced directly from your device to your local file or GitHub Gist.
-- **Secure Storage**: Your GitHub PAT is stored securely within Obsidian's local storage and is only used to communicate with the GitHub API.
+- **Local Storage**: Your GitHub PAT is stored locally by Obsidian plugin data (plaintext, not encrypted) and is only used to communicate with the GitHub API.
 
 ## Core Capabilities
 
@@ -38,14 +38,11 @@ iCal Pro intelligently categorizes tasks based on the presence of **Time**.
 | **Priority** | `⏫ High` / `🔼 Medium` / `🔽 Low` | `PRIORITY: 1 / 5 / 9` |
 | **Alarms** | `⏰ 15` (15 minutes before) | `VALARM` |
 | **Recurrence**| `🔁 every weekday` | `RRULE` |
-| **Description**| `the description under the line - [ ]` | Visible in shcedule description |
+| **Description**| `the description under the line - [ ]` | Visible in schedule description |
 | **Day Planner Mode** | `# 2026-04-01` (Any Heading) | Inherited Date |
 
 > [!IMPORTANT]
 > **Google Calendar Compatibility**: Google Calendar **does not support** `VTODO`. If you want your tasks to appear in the Google Calendar grid, you **must** include a time (e.g., `13:00`).
-
-## Core Capabilities
-
 
 - **Multi-Source Rules**: Bind specific vault paths to distinct calendar categories.
 - **Granular Filtering**: Include/Exclude by global filters, tags, or categories.
