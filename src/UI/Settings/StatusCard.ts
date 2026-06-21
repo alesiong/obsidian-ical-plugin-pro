@@ -105,9 +105,9 @@ function renderStatusCardContent(ctx: SectionContext, statusCard: HTMLElement, o
 
 	const diagnosticsBtn = syncCol.createEl("button", { text: "Copy diagnostics", cls: "ical-sync-button" });
 	diagnosticsBtn.title = "Copies settings, readiness, preview, and recent sync results for issue reports.";
-	diagnosticsBtn.onClickEvent(() => {
+	diagnosticsBtn.onClickEvent(async () => {
 		try {
-			void navigator.clipboard.writeText(plugin.getDiagnosticsBundle());
+			await navigator.clipboard.writeText(plugin.getDiagnosticsBundle());
 			new Notice("Diagnostics copied.");
 		} catch {
 			new Notice("Copy failed — please copy manually.");
@@ -128,9 +128,9 @@ function renderUrl(ctx: SectionContext, container: HTMLElement): void {
 		const url = `https://gist.githubusercontent.com/${username}/${gistId}/raw/${filename}`;
 		container.createEl("code", { text: url, cls: "ical-url-text" });
 		const copyBtn = container.createEl("button", { text: "Copy link", cls: "mod-cta" });
-		copyBtn.onClickEvent(() => {
+		copyBtn.onClickEvent(async () => {
 			try {
-				void navigator.clipboard.writeText(url);
+				await navigator.clipboard.writeText(url);
 				copyBtn.setText("Copied.");
 				window.setTimeout(() => copyBtn.setText("Copy link"), 2000);
 			} catch {

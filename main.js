@@ -1843,9 +1843,9 @@ function renderStatusCardContent(ctx, statusCard, outerContainer) {
   });
   const diagnosticsBtn = syncCol.createEl("button", { text: "Copy diagnostics", cls: "ical-sync-button" });
   diagnosticsBtn.title = "Copies settings, readiness, preview, and recent sync results for issue reports.";
-  diagnosticsBtn.onClickEvent(() => {
+  diagnosticsBtn.onClickEvent(async () => {
     try {
-      void navigator.clipboard.writeText(plugin.getDiagnosticsBundle());
+      await navigator.clipboard.writeText(plugin.getDiagnosticsBundle());
       new import_obsidian3.Notice("Diagnostics copied.");
     } catch (e) {
       new import_obsidian3.Notice("Copy failed \u2014 please copy manually.");
@@ -1862,9 +1862,9 @@ function renderUrl(ctx, container) {
     const url = `https://gist.githubusercontent.com/${username}/${gistId}/raw/${filename}`;
     container.createEl("code", { text: url, cls: "ical-url-text" });
     const copyBtn = container.createEl("button", { text: "Copy link", cls: "mod-cta" });
-    copyBtn.onClickEvent(() => {
+    copyBtn.onClickEvent(async () => {
       try {
-        void navigator.clipboard.writeText(url);
+        await navigator.clipboard.writeText(url);
         copyBtn.setText("Copied.");
         window.setTimeout(() => copyBtn.setText("Copy link"), 2e3);
       } catch (e) {
@@ -2388,7 +2388,7 @@ function renderAdvancedSettings(ctx, containerEl) {
     text: "These settings were previously only accessible by editing data.json manually.",
     cls: "setting-item-description ical-pro-hint"
   });
-  new import_obsidian4.Setting(body).setName("Dateless tasks as todos").setDesc("When using 'Events and todo items' mode, only tasks without any date are exported as VTODO. Tasks with dates always become VEVENT.").addToggle(
+  new import_obsidian4.Setting(body).setName("Dateless tasks as todos").setDesc("When using 'Todo items only' mode, only tasks without any date are exported as VTODO. When off, all tasks (including dated) become VTODO. This setting has no effect in 'Events and todo items' mode.").addToggle(
     (toggle) => toggle.setValue(plugin.settings.isOnlyTasksWithoutDatesAreTodos).onChange((value) => {
       runAsync(() => plugin.updateSettings({ isOnlyTasksWithoutDatesAreTodos: value }));
     })
