@@ -8,10 +8,11 @@
     "dev": "node esbuild.config.mjs",
     "build": "node esbuild.config.mjs production",
     "typecheck": "node ./node_modules/typescript/bin/tsc -noEmit -skipLibCheck",
-    "lint": "eslint src/**/*.ts",
+    "lint": "eslint src/**/*.ts tests/**/*.ts",
     "test": "node ./node_modules/tsx/dist/cli.mjs --test tests/*.test.ts",
     "test:smoke": "node ./node_modules/tsx/dist/cli.mjs --test tests/*.test.ts",
-    "validate": "npm run typecheck && npm run lint && npm run test && npm run build"
+    "validate": "npm run typecheck && npm run typecheck:tests && npm run lint && npm run test && npm run build",
+    "typecheck:tests": "node ./node_modules/typescript/bin/tsc -p tsconfig.test.json -noEmit"
   },
   "keywords": [
     "obsidian",

@@ -30,4 +30,25 @@ export default [
       "no-console": ["warn", { allow: ["warn", "error", "debug"] }],
     },
   },
+  {
+    files: ["tests/**/*.ts"],
+    languageOptions: {
+      parser: tsParser,
+      globals: {
+        ...globals.node,
+      },
+    },
+    plugins: {
+      "@typescript-eslint": tsPlugin,
+    },
+    rules: {
+      ...tsPlugin.configs.recommended.rules,
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+      "@typescript-eslint/no-explicit-any": "off",
+      "no-console": "off",
+    },
+  },
 ];
