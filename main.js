@@ -151,8 +151,8 @@ var DestinationHealthService = class {
     };
   }
   getLocalFileStatus(settings) {
-    var _a2;
-    const normalizedPath = ((_a2 = settings.savePath) == null ? void 0 : _a2.trim()) || "/";
+    var _a;
+    const normalizedPath = ((_a = settings.savePath) == null ? void 0 : _a.trim()) || "/";
     const enabled = settings.isSaveToFileEnabled;
     const issues = enabled && !normalizedPath ? ["Local file export is enabled but no save path is configured."] : [];
     return {
@@ -166,9 +166,9 @@ var DestinationHealthService = class {
     };
   }
   getGithubGistStatus(settings) {
-    var _a2, _b, _c;
+    var _a, _b, _c;
     const enabled = settings.isSaveToGistEnabled;
-    const username = ((_a2 = settings.githubUsername) == null ? void 0 : _a2.trim()) || "";
+    const username = ((_a = settings.githubUsername) == null ? void 0 : _a.trim()) || "";
     const gistId = ((_b = settings.githubGistId) == null ? void 0 : _b.trim()) || "";
     const hasToken = Boolean((_c = settings.githubPersonalAccessToken) == null ? void 0 : _c.trim());
     const issues = [];
@@ -218,13 +218,13 @@ var ConnectionValidationService = class {
     __publicField(this, "destinationHealthService", new DestinationHealthService());
   }
   async validateGist(settings) {
-    var _a2;
+    var _a;
     const gistStatus = this.destinationHealthService.evaluate(settings).destinations.find((destination) => destination.name === "github-gist");
     if (!(gistStatus == null ? void 0 : gistStatus.enabled)) {
       return { success: false, message: "GitHub Gist sync is not enabled." };
     }
     if (!gistStatus.ready) {
-      return { success: false, message: (_a2 = gistStatus.issues[0]) != null ? _a2 : "GitHub Gist settings are incomplete." };
+      return { success: false, message: (_a = gistStatus.issues[0]) != null ? _a : "GitHub Gist settings are incomplete." };
     }
     try {
       const response = await this.requestFn({
@@ -328,9 +328,9 @@ var DEFAULT_SETTINGS = {
   defaultAlarmOffset: 20
 };
 var migrateSettings = (raw) => {
-  var _a2, _b, _c;
+  var _a, _b, _c;
   const settings = Object.assign({}, DEFAULT_SETTINGS, raw != null ? raw : {});
-  const legacyFilename = (_a2 = settings.saveFileName) == null ? void 0 : _a2.trim();
+  const legacyFilename = (_a = settings.saveFileName) == null ? void 0 : _a.trim();
   if (!(raw == null ? void 0 : raw.filename) && legacyFilename) {
     const extension = ((_b = settings.saveFileExtension) == null ? void 0 : _b.trim()) || ".ics";
     settings.filename = `${legacyFilename}${extension.startsWith(".") ? extension : `.${extension}`}`;
@@ -348,21 +348,21 @@ var migrateSettings = (raw) => {
     settings.sourceRules = [{ path: settings.rootPath || "/", category: "" }];
   }
   settings.sourceRules = settings.sourceRules.map((rule) => {
-    var _a3, _b2, _c2;
+    var _a2, _b2, _c2;
     return {
-      path: ((_a3 = rule == null ? void 0 : rule.path) == null ? void 0 : _a3.trim()) ? rule.path.trim() : "/",
+      path: ((_a2 = rule == null ? void 0 : rule.path) == null ? void 0 : _a2.trim()) ? rule.path.trim() : "/",
       category: (_c2 = (_b2 = rule == null ? void 0 : rule.category) == null ? void 0 : _b2.trim()) != null ? _c2 : ""
     };
   }).filter((rule, index, rules) => rule.path.length > 0 && rules.findIndex((candidate) => candidate.path === rule.path && candidate.category === rule.category) === index);
   return settings;
 };
 var prepareSettingsForSave = (settings) => {
-  var _a2, _b;
+  var _a, _b;
   const normalizedSourceRules = settings.sourceRules.length > 0 ? settings.sourceRules : [{ path: "/", category: "" }];
   return {
     ...settings,
     sourceRules: normalizedSourceRules,
-    rootPath: (_b = (_a2 = normalizedSourceRules[0]) == null ? void 0 : _a2.path) != null ? _b : settings.rootPath
+    rootPath: (_b = (_a = normalizedSourceRules[0]) == null ? void 0 : _a.path) != null ? _b : settings.rootPath
   };
 };
 
@@ -497,8 +497,8 @@ var TaskIdentityService = class {
     __publicField(this, "state", state);
   }
   assign(filePath, tasks) {
-    var _a2;
-    const previousRecords = (_a2 = this.state[filePath]) != null ? _a2 : [];
+    var _a;
+    const previousRecords = (_a = this.state[filePath]) != null ? _a : [];
     const consumedRecords = /* @__PURE__ */ new Set();
     const nextRecords = [];
     for (const task of tasks) {
@@ -561,11 +561,11 @@ var TaskIdentityService = class {
     return score;
   }
   toRecord(task) {
-    var _a2;
+    var _a;
     return {
       id: task.getId(),
       sourceKey: task.sourceKey,
-      line: (_a2 = this.extractLineNumber(task.sourceKey)) != null ? _a2 : -1,
+      line: (_a = this.extractLineNumber(task.sourceKey)) != null ? _a : -1,
       summary: task.summary,
       body: task.body,
       datesKey: this.getDatesKey(task)
@@ -616,10 +616,10 @@ var TaskFilterPolicy = class {
     const filteredTasks = [];
     const reasonCounts = /* @__PURE__ */ new Map();
     tasks.forEach((task) => {
-      var _a2;
+      var _a;
       const reason = this.getFirstFailureReason(task, settings);
       if (reason) {
-        reasonCounts.set(reason, ((_a2 = reasonCounts.get(reason)) != null ? _a2 : 0) + 1);
+        reasonCounts.set(reason, ((_a = reasonCounts.get(reason)) != null ? _a : 0) + 1);
         return;
       }
       filteredTasks.push(task);
@@ -706,7 +706,7 @@ var TaskIndexingService = class {
     }
   }
   async indexFile(file, settings) {
-    var _a2, _b;
+    var _a, _b;
     const sourceRule = this.getSourceRuleForFile(file.path, settings);
     if (!sourceRule) {
       this.taskIndex.removeFile(file.path);
@@ -715,7 +715,7 @@ var TaskIndexingService = class {
     }
     const cache = this.metadataCache.getFileCache(file);
     const fallbackContent = await this.vault.cachedRead(file);
-    const listItems = ((_a2 = cache == null ? void 0 : cache.listItems) == null ? void 0 : _a2.length) ? cache.listItems : this.buildFallbackListItems(fallbackContent);
+    const listItems = ((_a = cache == null ? void 0 : cache.listItems) == null ? void 0 : _a.length) ? cache.listItems : this.buildFallbackListItems(fallbackContent);
     if (listItems.length === 0) {
       this.taskIndex.removeFile(file.path);
       this.fileStats.delete(file.path);
@@ -751,8 +751,8 @@ var TaskIndexingService = class {
     const reasonCounts = /* @__PURE__ */ new Map();
     const totals = [...this.fileStats.values()].reduce((acc, stats) => {
       stats.filteredReasons.forEach(({ reason, count }) => {
-        var _a2;
-        reasonCounts.set(reason, ((_a2 = reasonCounts.get(reason)) != null ? _a2 : 0) + count);
+        var _a;
+        reasonCounts.set(reason, ((_a = reasonCounts.get(reason)) != null ? _a : 0) + count);
       });
       return {
         discoveredTaskCount: acc.discoveredTaskCount + stats.discoveredTaskCount,
@@ -1383,7 +1383,7 @@ function formatTaskDate(date, format) {
 
 // src/Service/TaskFactory.ts
 function createTaskFromLine(line, fileUri, sourceKey, dateOverride, body, settings) {
-  var _a2, _b;
+  var _a, _b;
   line = line.replace(/^\s*(?:>\s*)+/, "");
   const taskRegex = /^(\s*[*+-]\s*\[)(.)(\]\s*)(.*)$/;
   const match = line.match(taskRegex);
@@ -1459,7 +1459,7 @@ ${body}`);
     const isOld = dates.every((d) => d.date < thresholdDate);
     if (isOld) return null;
   }
-  const completedAt = status === "Done" /* Done */ ? (_b = completedAtOverride != null ? completedAtOverride : normalizeCompletedAt((_a2 = dates.find((taskDate) => taskDate.name === "Completion")) == null ? void 0 : _a2.date)) != null ? _b : /* @__PURE__ */ new Date() : null;
+  const completedAt = status === "Done" /* Done */ ? (_b = completedAtOverride != null ? completedAtOverride : normalizeCompletedAt((_a = dates.find((taskDate) => taskDate.name === "Completion")) == null ? void 0 : _a.date)) != null ? _b : /* @__PURE__ */ new Date() : null;
   const durationMinutes = (parsedTime == null ? void 0 : parsedTime.endHours) !== void 0 && parsedTime.endMinutes !== void 0 ? (parsedTime.endHours * 60 + parsedTime.endMinutes - (parsedTime.hours * 60 + parsedTime.minutes) + 24 * 60) % (24 * 60) || null : null;
   return new Task(status, dates, summary, fileUri, sourceKey, body, alarmOffset, priority.value, recurrenceRule, categories, completedAt, durationMinutes);
 }
@@ -1713,9 +1713,9 @@ var TaskFinder = class {
     return bodyLines.join("\n");
   }
   getDateFromFileName(file) {
-    var _a2, _b;
+    var _a, _b;
     const fileWithBaseName = file;
-    const fileName = fileWithBaseName.basename ? String(fileWithBaseName.basename) : (_b = (_a2 = file.path.split("/").pop()) == null ? void 0 : _a2.replace(/\.md$/i, "")) != null ? _b : "";
+    const fileName = fileWithBaseName.basename ? String(fileWithBaseName.basename) : (_b = (_a = file.path.split("/").pop()) == null ? void 0 : _a.replace(/\.md$/i, "")) != null ? _b : "";
     return /^\d{4}-\d{2}-\d{2}$/.test(fileName) ? /* @__PURE__ */ new Date(`${fileName}T00:00:00`) : null;
   }
   normalizeTaskLine(line) {
@@ -1937,12 +1937,6 @@ var import_obsidian6 = require("obsidian");
 
 // src/UI/Settings/SectionContext.ts
 var import_obsidian4 = require("obsidian");
-
-// src/activeDocumentShim.ts
-var _a;
-var activeDocument = (_a = globalThis.activeDocument) != null ? _a : document;
-
-// src/UI/Settings/SectionContext.ts
 function createDescriptionWithLink(prefix, linkText, href) {
   const fragment = activeDocument.createDocumentFragment();
   fragment.append(prefix);
@@ -2500,6 +2494,9 @@ var SettingsTab = class extends import_obsidian8.PluginSettingTab {
     }
     this.pendingUpdates.clear();
   }
+  // TODO: migrate from PluginSettingTab.display() to getSettingDefinitions()
+  // Deferred — the current display() orchestrates multiple section modules with
+  // dynamic refresh (checklist, URL, status card) that doesn't map 1:1 to static definitions.
   display() {
     const { containerEl } = this;
     containerEl.empty();

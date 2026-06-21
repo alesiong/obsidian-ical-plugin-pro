@@ -1,5 +1,5 @@
+/* global activeDocument */
 import { App, Notice, Setting, setIcon } from "obsidian";
-import { activeDocument } from "../../activeDocumentShim";
 import ObsidianIcalPlugin from "../../ObsidianIcalPlugin";
 
 export interface SectionContext {
