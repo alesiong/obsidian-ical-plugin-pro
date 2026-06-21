@@ -96,7 +96,7 @@ function renderSourceRuleSetting(ctx: SectionContext, containerEl: HTMLElement, 
 				});
 		});
 
-	const nameEl = setting.settingEl.querySelector(".setting-item-name") as HTMLElement | null;
+	const nameEl = setting.settingEl.querySelector<HTMLElement>(".setting-item-name");
 	const inputs = setting.settingEl.querySelectorAll<HTMLInputElement>("input[type='text'], input:not([type])");
 	if (nameEl && inputs.length >= 2) {
 		const updateName = () => {

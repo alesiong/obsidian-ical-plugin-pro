@@ -64,7 +64,6 @@ export function renderAdvancedSettings(ctx: SectionContext, containerEl: HTMLEle
 		.addSlider((slider) =>
 			slider
 				.setLimits(5, 120, 5)
-				.setDynamicTooltip()
 				.setValue(plugin.settings.periodicSaveInterval)
 				.onChange((value) => {
 					runAsync(() => plugin.updateSettings({ periodicSaveInterval: value }, { rescheduleSync: true }));
@@ -109,7 +108,6 @@ export function renderAdvancedSettings(ctx: SectionContext, containerEl: HTMLEle
 		.addSlider((slider) =>
 			slider
 				.setLimits(7, 730, 1)
-				.setDynamicTooltip()
 				.setValue(plugin.settings.oldTaskInDays)
 				.onChange((value) => {
 					runAsync(() => plugin.updateSettings({ oldTaskInDays: value }, { rebuildIndex: true }));
