@@ -90,7 +90,7 @@ export function renderAdvancedSettings(ctx: SectionContext, containerEl: HTMLEle
 
 	new Setting(body)
 		.setName("Dateless tasks as todos")
-		.setDesc("When using 'Events and todo items' mode, only tasks without any date are exported as VTODO. Tasks with dates always become VEVENT.")
+		.setDesc("When using 'Todo items only' mode, only tasks without any date are exported as VTODO. When off, all tasks (including dated) become VTODO. This setting has no effect in 'Events and todo items' mode.")
 		.addToggle((toggle) =>
 			toggle.setValue(plugin.settings.isOnlyTasksWithoutDatesAreTodos).onChange((value) => {
 				runAsync(() => plugin.updateSettings({ isOnlyTasksWithoutDatesAreTodos: value }));
