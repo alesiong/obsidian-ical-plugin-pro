@@ -1,4 +1,3 @@
-/* global activeDocument */
 import { App, Notice, Setting, setIcon } from "obsidian";
 import ObsidianIcalPlugin from "../../ObsidianIcalPlugin";
 

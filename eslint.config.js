@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return -- ESLint plugin flat-config exports are typed broadly by upstream packages, so composing the config requires temporary unsafe access here. */
 /** @type {Array<import("eslint").Linter.Config>} */
 import obsidianmd from "eslint-plugin-obsidianmd";
 import tsParser from "@typescript-eslint/parser";
@@ -15,6 +15,7 @@ export default [
       globals: {
         ...globals.browser,
         ...globals.node,
+        activeDocument: "readonly",
       },
     },
     plugins: {
@@ -54,3 +55,4 @@ export default [
     },
   },
 ];
+/* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return -- Re-enable unsafe rules after composing the ESLint flat config. */
