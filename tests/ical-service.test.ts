@@ -593,3 +593,26 @@ test("datedTasksAsAllDayEvents: projection counts match generated ICS", () => {
 	assert.equal(veventCount, 2, "timed + dated tasks should be VEVENT");
 	assert.equal(vtodoCount, 1, "floating task should be VTODO");
 });
+
+test("datedTasksAsAllDayEvents: EventsOnly mode behaves consistently with or without flag", () => {
+	const datedTask = makeTask("- [ ] Report", new Date("2026-06-15T00:00:00"));
+	const floatingTask = makeTask("- [ ] Floating");
+	assert.ok(datedTask && floatingTask);
+
+	const baseSettings = {
+		...DEFAULT_SETTINGS,
+		includeEventsOrTodos: "EventsOnly" as const,
+	};
+
+	const calOff = ical([datedTask, floatingTask], { ...baseSettings, datedTasksAsAllDayEvents: false });
+	const calOn = ical([datedTask, floatingTask], { ...baseSettings, datedTasksAsAllDayEvents: true });
+
+	// EventsOnly already emits all dated tasks as VEVENT regardless of the flag
+	assert.match(calOff, /BEGIN:VEVENT/);
+	assert.match(calOn, /BEGIN:VEVENT/);
+	// Floating tasks are dropped in EventsOnly mode regardless of the flag
+	assert.doesNotMatch(calOff, /BEGIN:VTODO/);
+	assert.doesNotMatch(calOn, /BEGIN:VTODO/);
+	// Both should produce identical output
+	assert.equal(calOff, calOn, "EventsOnly output should be identical regardless of datedTasksAsAllDayEvents");
+});

@@ -16,7 +16,7 @@ function isMultipleDateMode(value: string): value is MultipleDateMode {
 }
 
 export function renderDateSettings(ctx: SectionContext, containerEl: HTMLElement): void {
-	const { plugin, runAsync, addSection } = ctx;
+	const { plugin, runAsync, rerender, addSection } = ctx;
 	const sectionEl = addSection(containerEl, "scheduling", "calendar-days", "Scheduling and alarms");
 
 	const body = sectionEl.createDiv({ cls: "ical-pro-section-body" });
@@ -42,7 +42,10 @@ export function renderDateSettings(ctx: SectionContext, containerEl: HTMLElement
 			});
 			dropdown.setValue(plugin.settings.includeEventsOrTodos).onChange((value) => {
 				if (isCalendarEntryMode(value)) {
-					void plugin.updateSettings({ includeEventsOrTodos: value });
+					runAsync(async () => {
+						await plugin.updateSettings({ includeEventsOrTodos: value });
+						rerender();
+					});
 				}
 			});
 		});
@@ -52,7 +55,10 @@ export function renderDateSettings(ctx: SectionContext, containerEl: HTMLElement
 		.setDesc("Export date-only tasks as all-day events instead of to-dos. Recommended for Google Calendar users because Google Calendar does not display VTODO.")
 		.addToggle((toggle) =>
 			toggle.setValue(plugin.settings.datedTasksAsAllDayEvents).onChange((value) => {
-				void plugin.updateSettings({ datedTasksAsAllDayEvents: value });
+				runAsync(async () => {
+					await plugin.updateSettings({ datedTasksAsAllDayEvents: value });
+					rerender();
+				});
 			}),
 		);
 
@@ -65,7 +71,10 @@ export function renderDateSettings(ctx: SectionContext, containerEl: HTMLElement
 			});
 			dropdown.setValue(plugin.settings.howToProcessMultipleDates).onChange((value) => {
 				if (isMultipleDateMode(value)) {
-					void plugin.updateSettings({ howToProcessMultipleDates: value });
+					runAsync(async () => {
+						await plugin.updateSettings({ howToProcessMultipleDates: value });
+						rerender();
+					});
 				}
 			});
 		});
