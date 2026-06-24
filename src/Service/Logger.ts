@@ -47,14 +47,3 @@ export function logger(isDebug?: boolean): Logger {
 	return Logger.getInstance(isDebug);
 }
 
-export function log(message: string, object?: unknown): void {
-	return Logger.getInstance().log(message, object);
-}
-
-export function warn(message: string, object?: unknown): void {
-	return Logger.getInstance().warn(message, object);
-}
-
-export function error(message: string, object?: unknown): void {
-	return Logger.getInstance().error(message, object);
-}
