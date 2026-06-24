@@ -42,7 +42,7 @@ iCal Pro intelligently categorizes tasks based on the presence of **Time**.
 | **Day Planner Mode** | `# 2026-04-01` (Any Heading) | Inherited Date |
 
 > [!IMPORTANT]
-> **Google Calendar Compatibility**: Google Calendar **does not support** `VTODO`. If you want your tasks to appear in the Google Calendar grid, you **must** include a time (e.g., `13:00`).
+> **Google Calendar Compatibility**: Google Calendar **does not support** `VTODO`. To see date-only tasks in Google Calendar, enable **"Show dated tasks as all-day events"** in Scheduling settings, or add a time (e.g., `13:00`) to each task.
 
 - **Multi-Source Rules**: Bind specific vault paths to distinct calendar categories.
 - **Granular Filtering**: Include/Exclude by global filters, tags, or categories.
@@ -108,14 +108,14 @@ You can also use the **Copy Diagnostics** button in the status card to generate 
 ## FAQ
 
 **Q: Why don't my To-Dos (VTODO) show up in Google Calendar?**
-A: Google Calendar natively only supports `VEVENT`. For full `VTODO` support, we recommend using Apple Calendar, Microsoft Outlook, or dedicated task managers like Reminders that support iCal subscriptions.
+A: Google Calendar natively only supports `VEVENT`. Enable **"Show dated tasks as all-day events"** in Scheduling settings to export date-only tasks as all-day events. Floating tasks (no date) will remain as `VTODO` and still won't appear. For full `VTODO` support, use Apple Calendar, Microsoft Outlook, or dedicated task managers.
 
 **Q: Is it safe to use GitHub Gist?**
 A: Yes. Your Gist is yours. We recommend using a private Gist for maximum privacy. Your Personal Access Token never leaves your machine except to communicate with GitHub.
 
 ## Compatibility & Troubleshooting
 
-- **Google Calendar does not support `VTODO`.** Tasks without a time are exported as `VTODO` and will not appear in Google Calendar. To see tasks in Google Calendar, add a time (e.g. `13:00`) so they become `VEVENT`.
+- **Google Calendar does not support `VTODO`.** By default, date-only tasks are exported as `VTODO`. Enable **"Show dated tasks as all-day events"** in Scheduling settings to export them as all-day `VEVENT` instead. This is optional and recommended for Google Calendar users. Floating tasks (no date) remain `VTODO` regardless of this setting.
 - **Calendar clients may refresh subscribed ICS feeds slowly.** Most clients cache subscriptions and only refresh periodically (often every 1–24 hours). After syncing, you may need to manually refresh or wait for the next polling cycle.
 - **Local file export requires a calendar client that can read local ICS files.** Not all clients support subscribing to local files. Apple Calendar and Thunderbird work well; some clients may require the file to be served over HTTP.
 - **Mobile support varies by client and storage workflow.** If you use local file export, the `.ics` file lives in your Obsidian vault. Mobile calendar apps may not have direct access to vault storage. GitHub Gist sync is recommended for cross-device use.
