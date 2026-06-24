@@ -43,6 +43,7 @@ export interface Settings {
 	linkPlacement: LinkPlacement;
 	enableAlarms: boolean;
 	defaultAlarmOffset: number;
+	datedTasksAsAllDayEvents: boolean;
 }
 
 export const HOW_TO_PARSE_INTERNAL_LINKS = {
@@ -105,6 +106,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	linkPlacement: "Location",
 	enableAlarms: true,
 	defaultAlarmOffset: 20,
+	datedTasksAsAllDayEvents: false,
 };
 
 type LegacySettings = Partial<Settings> & {

@@ -470,3 +470,126 @@ test("COMPLETED: emitted for done VTODO with completion date", () => {
 	});
 	assert.match(cal, /COMPLETED:20260403T000000Z/);
 });
+
+// ─── datedTasksAsAllDayEvents ────────────────────────────────────────────────
+
+test("datedTasksAsAllDayEvents: default behavior unchanged — dated task emits VTODO", () => {
+	const task = makeTask("- [ ] Report", new Date("2026-06-15T00:00:00"));
+	assert.ok(task);
+	const cal = ical([task], { ...DEFAULT_SETTINGS, includeEventsOrTodos: "EventsAndTodos" });
+	assert.match(cal, /BEGIN:VTODO/);
+	assert.doesNotMatch(cal, /BEGIN:VEVENT/);
+});
+
+test("datedTasksAsAllDayEvents: promotes date-only task to all-day VEVENT", () => {
+	const task = makeTask("- [ ] Report", new Date("2026-06-15T00:00:00"));
+	assert.ok(task);
+	const cal = ical([task], {
+		...DEFAULT_SETTINGS,
+		includeEventsOrTodos: "EventsAndTodos",
+		datedTasksAsAllDayEvents: true,
+	});
+	assert.match(cal, /BEGIN:VEVENT/);
+	assert.match(cal, /DTSTART;VALUE=DATE:20260615/);
+	assert.doesNotMatch(cal, /BEGIN:VTODO/);
+});
+
+test("datedTasksAsAllDayEvents: floating task stays VTODO", () => {
+	const task = makeTask("- [ ] Floating task");
+	assert.ok(task);
+	const cal = ical([task], {
+		...DEFAULT_SETTINGS,
+		includeEventsOrTodos: "EventsAndTodos",
+		datedTasksAsAllDayEvents: true,
+	});
+	assert.match(cal, /BEGIN:VTODO/);
+	assert.doesNotMatch(cal, /BEGIN:VEVENT/);
+});
+
+test("datedTasksAsAllDayEvents: timed task unchanged as VEVENT", () => {
+	const task = makeTask("- [ ] 09:00 Meeting", new Date("2026-06-15T00:00:00"));
+	assert.ok(task);
+	const cal = ical([task], {
+		...DEFAULT_SETTINGS,
+		includeEventsOrTodos: "EventsAndTodos",
+		datedTasksAsAllDayEvents: true,
+	});
+	assert.match(cal, /BEGIN:VEVENT/);
+	assert.match(cal, /DTSTART;TZID=/);
+	assert.doesNotMatch(cal, /BEGIN:VTODO/);
+});
+
+test("datedTasksAsAllDayEvents: VEVENT does not contain STATUS:NEEDS-ACTION", () => {
+	const task = makeTask("- [ ] Report", new Date("2026-06-15T00:00:00"));
+	assert.ok(task);
+	const cal = ical([task], {
+		...DEFAULT_SETTINGS,
+		includeEventsOrTodos: "EventsAndTodos",
+		datedTasksAsAllDayEvents: true,
+	});
+	assert.doesNotMatch(cal, /STATUS:NEEDS-ACTION/);
+});
+
+test("datedTasksAsAllDayEvents: VEVENT does not contain STATUS:COMPLETED", () => {
+	const task = makeTask("- [x] Done report", new Date("2026-06-15T00:00:00"));
+	assert.ok(task);
+	const cal = ical([task], {
+		...DEFAULT_SETTINGS,
+		includeEventsOrTodos: "EventsAndTodos",
+		datedTasksAsAllDayEvents: true,
+		ignoreCompletedTasks: false,
+	});
+	assert.doesNotMatch(cal, /STATUS:COMPLETED/);
+});
+
+test("datedTasksAsAllDayEvents: cancelled task emits STATUS:CANCELLED on VEVENT", () => {
+	const task = makeTask("- [-] Cancelled report", new Date("2026-06-15T00:00:00"));
+	assert.ok(task);
+	const cal = ical([task], {
+		...DEFAULT_SETTINGS,
+		includeEventsOrTodos: "EventsAndTodos",
+		datedTasksAsAllDayEvents: true,
+	});
+	assert.match(cal, /BEGIN:VEVENT/);
+	assert.match(cal, /STATUS:CANCELLED/);
+});
+
+test("datedTasksAsAllDayEvents: recurrence and priority preserved on promoted VEVENT", () => {
+	const task = makeTask("- [ ] Weekly report ⏫ 🔁 every week", new Date("2026-06-15T00:00:00"));
+	assert.ok(task);
+	const cal = ical([task], {
+		...DEFAULT_SETTINGS,
+		includeEventsOrTodos: "EventsAndTodos",
+		datedTasksAsAllDayEvents: true,
+	});
+	assert.match(cal, /BEGIN:VEVENT/);
+	assert.match(cal, /DTSTART;VALUE=DATE:20260615/);
+	assert.match(cal, /RRULE:FREQ=WEEKLY/);
+	assert.match(cal, /PRIORITY:1/);
+	assert.doesNotMatch(cal, /BEGIN:VTODO/);
+});
+
+test("datedTasksAsAllDayEvents: projection counts match generated ICS", () => {
+	const timedTask = makeTask("- [ ] 09:00 Meeting", new Date("2026-06-15T00:00:00"));
+	const datedTask = makeTask("- [ ] Report", new Date("2026-06-15T00:00:00"));
+	const floatingTask = makeTask("- [ ] Floating");
+	assert.ok(timedTask && datedTask && floatingTask);
+
+	const settings = {
+		...DEFAULT_SETTINGS,
+		includeEventsOrTodos: "EventsAndTodos" as const,
+		datedTasksAsAllDayEvents: true,
+	};
+
+	const service = new IcalService();
+	const projection = service.getProjection([timedTask, datedTask, floatingTask], settings);
+	const cal = service.getCalendar([timedTask, datedTask, floatingTask], settings);
+
+	const veventCount = (cal.match(/BEGIN:VEVENT/g) || []).length;
+	const vtodoCount = (cal.match(/BEGIN:VTODO/g) || []).length;
+
+	assert.equal(projection.eventCount, veventCount, `projection eventCount ${projection.eventCount} should match ICS VEVENT count ${veventCount}`);
+	assert.equal(projection.todoCount, vtodoCount, `projection todoCount ${projection.todoCount} should match ICS VTODO count ${vtodoCount}`);
+	assert.equal(veventCount, 2, "timed + dated tasks should be VEVENT");
+	assert.equal(vtodoCount, 1, "floating task should be VTODO");
+});

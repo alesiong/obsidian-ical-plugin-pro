@@ -32,14 +32,18 @@ export class IcalService {
 			floatingTasks,
 		} = projection;
 
+		const promoteUntimed = settings.datedTasksAsAllDayEvents && settings.includeEventsOrTodos === "EventsAndTodos";
+
 		if (includeEvents) {
-			const eventTasks = settings.includeEventsOrTodos === "EventsAndTodos" ? timedTasks : datedTasks;
+			const eventTasks = settings.includeEventsOrTodos === "EventsAndTodos"
+				? (promoteUntimed ? [...timedTasks, ...untimedTasks] : timedTasks)
+				: datedTasks;
 			this.addEventsToBuilder(eventTasks, settings, builder, timezone);
 		}
 
 		if (includeTodos) {
 			const todoTasks = settings.includeEventsOrTodos === "EventsAndTodos"
-				? [...untimedTasks, ...floatingTasks]
+				? (promoteUntimed ? floatingTasks : [...untimedTasks, ...floatingTasks])
 				: (settings.isOnlyTasksWithoutDatesAreTodos ? floatingTasks : exportableTasks);
 			this.addToDosToBuilder(todoTasks, settings, builder);
 		}
@@ -241,18 +245,21 @@ export class IcalService {
 		const floatingTasks = exportableTasks.filter((task) => !task.hasAnyDate());
 		const includeEvents = settings.includeEventsOrTodos === "EventsAndTodos" || settings.includeEventsOrTodos === "EventsOnly";
 		const includeTodos = settings.includeEventsOrTodos === "EventsAndTodos" || settings.includeEventsOrTodos === "TodosOnly";
+		const promoteUntimed = settings.datedTasksAsAllDayEvents && settings.includeEventsOrTodos === "EventsAndTodos";
 		const eventCount = includeEvents
-			? (settings.includeEventsOrTodos === "EventsAndTodos" ? timedTasks.length : datedTasks.length)
+			? (settings.includeEventsOrTodos === "EventsAndTodos"
+				? timedTasks.length + (promoteUntimed ? untimedTasks.length : 0)
+				: datedTasks.length)
 			: 0;
 		const todoCount = includeTodos
 			? (settings.includeEventsOrTodos === "EventsAndTodos"
-				? untimedTasks.length + floatingTasks.length
+				? (promoteUntimed ? floatingTasks.length : untimedTasks.length + floatingTasks.length)
 				: (settings.isOnlyTasksWithoutDatesAreTodos ? floatingTasks.length : exportableTasks.length))
 			: 0;
 		const todoReasons: Array<{ reason: string; count: number }> = [];
 		if (includeTodos) {
 			if (settings.includeEventsOrTodos === "EventsAndTodos") {
-				if (untimedTasks.length > 0) {
+				if (!promoteUntimed && untimedTasks.length > 0) {
 					todoReasons.push({
 						reason: "Task has a date but no time, so it is exported as VTODO",
 						count: untimedTasks.length,

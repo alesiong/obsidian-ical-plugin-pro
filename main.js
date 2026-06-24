@@ -325,7 +325,8 @@ var DEFAULT_SETTINGS = {
   excludedPaths: [],
   linkPlacement: "Location",
   enableAlarms: true,
-  defaultAlarmOffset: 20
+  defaultAlarmOffset: 20,
+  datedTasksAsAllDayEvents: false
 };
 var migrateSettings = (raw) => {
   var _a, _b, _c;
@@ -1017,12 +1018,13 @@ var IcalService = class {
       untimedTasks,
       floatingTasks
     } = projection;
+    const promoteUntimed = settings.datedTasksAsAllDayEvents && settings.includeEventsOrTodos === "EventsAndTodos";
     if (includeEvents) {
-      const eventTasks = settings.includeEventsOrTodos === "EventsAndTodos" ? timedTasks : datedTasks;
+      const eventTasks = settings.includeEventsOrTodos === "EventsAndTodos" ? promoteUntimed ? [...timedTasks, ...untimedTasks] : timedTasks : datedTasks;
       this.addEventsToBuilder(eventTasks, settings, builder, timezone);
     }
     if (includeTodos) {
-      const todoTasks = settings.includeEventsOrTodos === "EventsAndTodos" ? [...untimedTasks, ...floatingTasks] : settings.isOnlyTasksWithoutDatesAreTodos ? floatingTasks : exportableTasks;
+      const todoTasks = settings.includeEventsOrTodos === "EventsAndTodos" ? promoteUntimed ? floatingTasks : [...untimedTasks, ...floatingTasks] : settings.isOnlyTasksWithoutDatesAreTodos ? floatingTasks : exportableTasks;
       this.addToDosToBuilder(todoTasks, settings, builder);
     }
     return builder.build();
@@ -1174,12 +1176,13 @@ var IcalService = class {
     const floatingTasks = exportableTasks.filter((task) => !task.hasAnyDate());
     const includeEvents = settings.includeEventsOrTodos === "EventsAndTodos" || settings.includeEventsOrTodos === "EventsOnly";
     const includeTodos = settings.includeEventsOrTodos === "EventsAndTodos" || settings.includeEventsOrTodos === "TodosOnly";
-    const eventCount = includeEvents ? settings.includeEventsOrTodos === "EventsAndTodos" ? timedTasks.length : datedTasks.length : 0;
-    const todoCount = includeTodos ? settings.includeEventsOrTodos === "EventsAndTodos" ? untimedTasks.length + floatingTasks.length : settings.isOnlyTasksWithoutDatesAreTodos ? floatingTasks.length : exportableTasks.length : 0;
+    const promoteUntimed = settings.datedTasksAsAllDayEvents && settings.includeEventsOrTodos === "EventsAndTodos";
+    const eventCount = includeEvents ? settings.includeEventsOrTodos === "EventsAndTodos" ? timedTasks.length + (promoteUntimed ? untimedTasks.length : 0) : datedTasks.length : 0;
+    const todoCount = includeTodos ? settings.includeEventsOrTodos === "EventsAndTodos" ? promoteUntimed ? floatingTasks.length : untimedTasks.length + floatingTasks.length : settings.isOnlyTasksWithoutDatesAreTodos ? floatingTasks.length : exportableTasks.length : 0;
     const todoReasons = [];
     if (includeTodos) {
       if (settings.includeEventsOrTodos === "EventsAndTodos") {
-        if (untimedTasks.length > 0) {
+        if (!promoteUntimed && untimedTasks.length > 0) {
           todoReasons.push({
             reason: "Task has a date but no time, so it is exported as VTODO",
             count: untimedTasks.length
@@ -2249,6 +2252,11 @@ function renderDateSettings(ctx, containerEl) {
       }
     });
   });
+  new import_obsidian4.Setting(body).setName("Show dated tasks as all-day events").setDesc("Export date-only tasks as all-day events instead of to-dos. Recommended for Google Calendar users because Google Calendar does not display VTODO.").addToggle(
+    (toggle) => toggle.setValue(plugin.settings.datedTasksAsAllDayEvents).onChange((value) => {
+      void plugin.updateSettings({ datedTasksAsAllDayEvents: value });
+    })
+  );
   new import_obsidian4.Setting(body).setName("Multiple date handling").setDesc("How to handle tasks that contain multiple start, scheduled, or due dates.").addDropdown((dropdown) => {
     Object.entries(HOW_TO_PROCESS_MULTIPLE_DATES).forEach(([value, label]) => {
       dropdown.addOption(value, label);

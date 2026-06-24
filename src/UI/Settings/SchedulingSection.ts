@@ -48,6 +48,15 @@ export function renderDateSettings(ctx: SectionContext, containerEl: HTMLElement
 		});
 
 	new Setting(body)
+		.setName("Show dated tasks as all-day events")
+		.setDesc("Export date-only tasks as all-day events instead of to-dos. Recommended for Google Calendar users because Google Calendar does not display VTODO.")
+		.addToggle((toggle) =>
+			toggle.setValue(plugin.settings.datedTasksAsAllDayEvents).onChange((value) => {
+				void plugin.updateSettings({ datedTasksAsAllDayEvents: value });
+			}),
+		);
+
+	new Setting(body)
 		.setName("Multiple date handling")
 		.setDesc("How to handle tasks that contain multiple start, scheduled, or due dates.")
 		.addDropdown((dropdown) => {
