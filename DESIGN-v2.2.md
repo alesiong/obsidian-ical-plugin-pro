@@ -14,13 +14,13 @@ Google Calendar does not support `VTODO`. Users who rely on Google Calendar see 
 
 ### Design
 
-Add a new boolean setting: `googleCalendarMode` (default: `false`).
+Add a new boolean setting: `datedTasksAsAllDayEvents` (default: `false`).
 
-When enabled, the `IcalService` rendering pipeline converts dated-but-untimed tasks from `VTODO` to all-day `VEVENT` instead. The classification buckets (`getTaskBuckets()`) remain unchanged — only the rendering decision in `getCalendar()` is affected.
+When enabled, the `IcalService` rendering pipeline converts dated-but-untimed tasks from `VTODO` to all-day `VEVENT` instead. The classification buckets (`getTaskBuckets()`) remain unchanged — only the rendering decision in `getCalendar()` is affected. The public projection counts (`getProjection()` / `SyncPreviewService`) must reflect the same promotion so that preview numbers always match the generated ICS output.
 
 **Behavioral matrix:**
 
-| Task type | Default mode | Google Calendar mode |
+| Task type | Default mode | `datedTasksAsAllDayEvents=true` |
 |---|---|---|
 | Timed task (has HH:MM) | `VEVENT` | `VEVENT` (no change) |
 | Dated task (date only) | `VTODO` | `VEVENT` (all-day, `VALUE=DATE`) |
@@ -34,7 +34,7 @@ timedTasks    → renderEvent()
 untimedTasks  → renderTodo()
 floatingTasks → renderTodo()
 
-// With googleCalendarMode=true (EventsAndTodos mode):
+// With datedTasksAsAllDayEvents=true (EventsAndTodos mode):
 timedTasks    → renderEvent()
 untimedTasks  → renderEvent()   // ← promoted to all-day VEVENT
 floatingTasks → renderTodo()    // ← stays VTODO (no date to anchor)
@@ -45,25 +45,25 @@ floatingTasks → renderTodo()    // ← stays VTODO (no date to anchor)
 ```
 BEGIN:VEVENT
 DTSTART;VALUE=DATE:20260401
-DTEND;VALUE=DATE:20260402
 SUMMARY:Task text
 UID:...
 DTSTAMP:...
-STATUS:NEEDS-ACTION
+DESCRIPTION:Status: todo
 END:VEVENT
 ```
 
 Key differences from timed VEVENT:
 - `DTSTART;VALUE=DATE:YYYYMMDD` (no time component, no TZID)
-- `DTEND;VALUE=DATE:YYYYMMDD` (next day, per RFC 5545 all-day convention)
-- `STATUS:NEEDS-ACTION` instead of `CONFIRMED` (preserves task semantics)
+- No `DTEND` — matches the current `renderEvent()` behavior for date-only events (no timed duration means no DTEND). This keeps the change minimal. Calendar clients treat a DTSTART-only date as an all-day event.
+- No `STATUS` property — RFC 5545 `STATUS` for `VEVENT` only allows `TENTATIVE`, `CONFIRMED`, and `CANCELLED`. Task-specific statuses like `NEEDS-ACTION`, `IN-PROCESS`, and `COMPLETED` are `VTODO`-only and must not appear on `VEVENT`. If the original task was cancelled, `STATUS:CANCELLED` may be emitted (this is valid for both `VEVENT` and `VTODO`).
+- Task semantics (todo/in-progress/done) are preserved in `DESCRIPTION` if needed, not via invalid `STATUS` values.
 
 **Settings model change (`Settings.ts`):**
 
 ```typescript
 interface Settings {
     // ... existing fields ...
-    googleCalendarMode: boolean;  // default: false
+    datedTasksAsAllDayEvents: boolean;  // default: false
 }
 ```
 
@@ -73,9 +73,9 @@ interface Settings {
 
 | Layer | File | Change |
 |---|---|---|
-| Model | `Settings.ts` | Add `googleCalendarMode: boolean` |
+| Model | `Settings.ts` | Add `datedTasksAsAllDayEvents: boolean` |
 | Migration | `Settings.ts` | Default to `false` in `migrateSettings()` |
-| Service | `IcalService.ts` | Branch rendering in `getCalendar()` when flag is set |
+| Service | `IcalService.ts` | Branch rendering in `getCalendar()` when flag is set; update `getProjection()` to count promoted tasks as events |
 | Service | `IcalBuilder.ts` | No change (already supports `VALUE=DATE`) |
 | Service | `ICalService.test.ts` | New test cases |
 | UI | `SchedulingSection.ts` | Add toggle with description |
@@ -84,19 +84,22 @@ interface Settings {
 
 ### Risk assessment
 
-**Low risk.** The change is isolated to one rendering branch in `getCalendar()`. The classification logic (`getTaskBuckets()`) is untouched. The `ICalBuilder` already handles `VALUE=DATE` correctly (used by `EventsOnly` mode for date-only events). The flag defaults to off, so zero behavioral change for existing users.
+**Low risk.** The change is isolated to one rendering branch in `getCalendar()` and the corresponding projection path in `getProjection()`. The classification logic (`getTaskBuckets()`) is untouched. The `ICalBuilder` already handles `VALUE=DATE` correctly (used by `EventsOnly` mode for date-only events). The flag defaults to off, so zero behavioral change for existing users.
 
 ### Testing scope
 
 | Test | Input | Expected output |
 |---|---|---|
-| Timed task unchanged | `- [ ] 2026-04-01 13:00 Meeting` | `VEVENT` with `DTSTART;TZID=...:20260401T130000` |
-| Dated task promoted | `- [ ] 2026-04-01 Report` | `VEVENT` with `DTSTART;VALUE=DATE:20260401` |
-| Floating task stays VTODO | `- [ ] Buy milk` | `VTODO` with no `DUE` |
-| Default mode unaffected | Same inputs, `googleCalendarMode=false` | Original behavior: dated → `VTODO` |
-| Recurring dated task | `- [ ] 2026-04-01 🔁 every week Report` | `VEVENT` with `RRULE` + `VALUE=DATE` |
-| Priority preserved | `- [ ] 2026-04-01 ⏫ Urgent` | `VEVENT` with `PRIORITY:1` |
-| Status mapping | Completed dated task | `VEVENT` with `STATUS:COMPLETED` |
+| Default behavior unchanged | `- [ ] 2026-04-01 Report`, `datedTasksAsAllDayEvents=false` | `VTODO` with `DUE:20260401` (original behavior) |
+| Timed task unchanged | `- [ ] 2026-04-01 13:00 Meeting`, `datedTasksAsAllDayEvents=true` | `VEVENT` with `DTSTART;TZID=...:20260401T130000` (no change) |
+| Dated task promoted | `- [ ] 2026-04-01 Report`, `datedTasksAsAllDayEvents=true` | `VEVENT` with `DTSTART;VALUE=DATE:20260401` |
+| Floating task stays VTODO | `- [ ] Buy milk`, `datedTasksAsAllDayEvents=true` | `VTODO` with no `DUE` |
+| No invalid STATUS on VEVENT | `- [ ] 2026-04-01 Report`, `datedTasksAsAllDayEvents=true` | `VEVENT` without `STATUS:NEEDS-ACTION` or `STATUS:COMPLETED` |
+| Cancelled task STATUS preserved | `- [-] 2026-04-01 Report`, `datedTasksAsAllDayEvents=true` | `VEVENT` with `STATUS:CANCELLED` (valid for VEVENT) |
+| Projection consistency | Same task list with `datedTasksAsAllDayEvents=true` | `getProjection().eventCount` matches actual VEVENT count in generated ICS |
+| Projection consistency (default) | Same task list with `datedTasksAsAllDayEvents=false` | `getProjection().eventCount` / `todoCount` match original behavior |
+| Recurring dated task | `- [ ] 2026-04-01 🔁 every week Report`, `datedTasksAsAllDayEvents=true` | `VEVENT` with `RRULE` + `VALUE=DATE` |
+| Priority preserved | `- [ ] 2026-04-01 ⏫ Urgent`, `datedTasksAsAllDayEvents=true` | `VEVENT` with `PRIORITY:1` |
 
 ---
 
@@ -132,20 +135,22 @@ interface TaskDecision {
 }
 ```
 
-**New service method — `IcalService.getTaskDecisions()`:**
+**New service — `TaskDecisionService` (or extend `SyncPreviewService`):**
 
-This method reuses `getTaskBuckets()` internally but returns per-task decisions instead of aggregate counts. It runs the same classification pipeline but annotates each task with its outcome and reason.
+Per-task explanation logic lives outside `IcalService`. `IcalService` remains focused on ICS rendering and aggregate projection. A new `TaskDecisionService` (or an extension of `SyncPreviewService`) is responsible for building per-task decision records.
+
+The service calls `IcalService.getTaskBuckets()` to classify tasks (reusing the same bucket logic that `getCalendar()` uses), then annotates each task with its outcome and reason. This guarantees consistency: if a task lands in `timedTasks`, both the ICS output and the preview agree it is a `VEVENT`.
 
 ```
 Input:  Task[], Settings
 Output: TaskDecision[]
 
 Logic:
-1. Run getTaskBuckets() to classify all tasks
+1. Call icalService.getTaskBuckets(tasks, settings) to classify
 2. For each timed task:
    → { type: "VEVENT", reason: "Has time → event" }
 3. For each untimed task:
-   → if googleCalendarMode: { type: "VEVENT", reason: "All-day event (Google Calendar mode)" }
+   → if datedTasksAsAllDayEvents: { type: "VEVENT", reason: "All-day event (dated tasks as all-day events)" }
    → else: { type: "VTODO", reason: "Date-only → to-do" }
 4. For each floating task:
    → { type: "VTODO", reason: "No date → floating to-do" }
@@ -191,8 +196,8 @@ The preview table renders inside the existing status card area, below the aggreg
 
 | Layer | File | Change |
 |---|---|---|
-| Model | New `TaskDecision` interface | In `SyncPreviewService.ts` or new file |
-| Service | `IcalService.ts` | Add `getTaskDecisions()` method |
+| Model | New `TaskDecision` interface | In `SyncPreviewService.ts` or new `Application/TaskDecisionService.ts` |
+| Service | `TaskDecisionService.ts` (new) or `SyncPreviewService.ts` | Build per-task decisions by calling `IcalService.getTaskBuckets()` and annotating each task |
 | Service | `TaskFilterPolicy.ts` | Extend `TaskFilterReport` with per-task decisions |
 | Service | `SyncPreviewService.ts` | Build full decision list (filtered + classified) |
 | UI | `StatusCard.ts` | Add collapsible decision table below aggregate preview |
@@ -202,9 +207,9 @@ The preview table renders inside the existing status card area, below the aggreg
 
 ### Risk assessment
 
-**Medium risk.** The core classification logic is unchanged — `getTaskBuckets()` is reused as-is. The risk is in the UI layer: rendering a table of potentially hundreds of tasks requires performance care. The filter policy extension is additive (new field, no changed behavior). The main concern is that `getTaskDecisions()` must produce results consistent with `getCalendar()` — if they diverge, the preview would lie.
+**Medium risk.** The core classification logic is unchanged — `getTaskBuckets()` is reused as-is. The risk is in the UI layer: rendering a table of potentially hundreds of tasks requires performance care. The filter policy extension is additive (new field, no changed behavior). The main concern is that the decision service must produce results consistent with `getCalendar()` — if they diverge, the preview would lie.
 
-**Mitigation:** `getTaskDecisions()` should call the same `getTaskBuckets()` that `getCalendar()` calls. The decision logic is a thin annotation layer on top of the existing bucket assignment, not a parallel implementation.
+**Mitigation:** The decision service calls the same `getTaskBuckets()` that `getCalendar()` calls. The decision logic is a thin annotation layer on top of the existing bucket assignment, not a parallel implementation. `IcalService` does not gain any explanation responsibility — it remains the ICS rendering engine.
 
 ### Testing scope
 
@@ -225,7 +230,7 @@ The preview table renders inside the existing status card area, below the aggreg
 | Dimension | Google Calendar Grid Mode | Calendar Preview & Explain |
 |---|---|---|
 | **User value** | **High.** Unlocks Google Calendar for an entire class of tasks (date-only). The #1 compatibility complaint. | **Medium-high.** Solves the "where did my task go?" debugging problem. Reduces support burden. |
-| **Implementation risk** | **Low.** Single rendering branch, isolated to `getCalendar()`. No new interfaces. No UI complexity. | **Medium.** New service method, extended filter report, table UI with performance considerations. |
+| **Implementation risk** | **Low.** Single rendering branch in `getCalendar()` + projection alignment in `getProjection()`. No new interfaces. No UI complexity. | **Medium.** New decision service, extended filter report, table UI with performance considerations. |
 | **Testing scope** | **Small.** 7 focused tests covering the mode toggle and edge cases. | **Medium.** 7+ tests for decisions, plus consistency checks between preview and actual output. |
 | **UI impact** | **Minimal.** One toggle in Scheduling section. | **Moderate.** New collapsible table in status card. CSS additions. |
 | **Data model change** | One boolean field. | New interfaces, extended filter report. |
@@ -244,7 +249,7 @@ Rationale:
 
 2. **Near-zero risk.** The change is isolated, defaults to off, and touches no existing behavior. It can ship with high confidence.
 
-3. **Natural stepping stone for Preview.** Once `googleCalendarMode` exists, the preview/explain feature becomes more valuable — users can see *how* the mode changes their task exports. Shipping Preview after Grid Mode means the preview can explain the Grid Mode behavior from day one.
+3. **Natural stepping stone for Preview.** Once `datedTasksAsAllDayEvents` exists, the preview/explain feature becomes more valuable — users can see *how* the mode changes their task exports. Shipping Preview after Grid Mode means the preview can explain the all-day promotion behavior from day one.
 
 4. **Testing is straightforward.** The test matrix is small and the expected outputs are unambiguous (all-day VEVENT format is well-defined in RFC 5545).
 
@@ -256,18 +261,19 @@ Calendar Preview & Explain should follow in a subsequent minor release (v2.2.1 o
 
 ### Phase A: Google Calendar Grid Mode (v2.2.0)
 
-1. Add `googleCalendarMode` to `Settings` interface with default `false`
+1. Add `datedTasksAsAllDayEvents` to `Settings` interface with default `false`
 2. Add migration default in `migrateSettings()`
-3. Modify `IcalService.getCalendar()` to render untimed dated tasks as all-day VEVENT when flag is set
-4. Add toggle to `SchedulingSection.ts` with description: "Export dated tasks as all-day events instead of to-dos. Recommended for Google Calendar users."
-5. Add 7 tests to `ical-service.test.ts`
-6. Update README compatibility section
+3. Modify `IcalService.getCalendar()` to render untimed dated tasks as all-day VEVENT when flag is set; omit `STATUS` on promoted VEVENT (except `CANCELLED`)
+4. Modify `IcalService.getProjection()` to count promoted tasks as events (projection consistency)
+5. Add toggle to `SchedulingSection.ts` with description: "Export dated tasks as all-day events instead of to-dos. Recommended for Google Calendar users."
+6. Add 10 tests to `ical-service.test.ts` (see testing scope)
+7. Update README compatibility section
 
 ### Phase B: Calendar Preview & Explain (v2.2.1 or v2.3)
 
 1. Add `TaskDecision` and `TaskFilterDecision` interfaces
 2. Extend `TaskFilterPolicy.applyWithReport()` to include per-task decisions
-3. Add `IcalService.getTaskDecisions()` method
+3. Add `TaskDecisionService` (or extend `SyncPreviewService`) that calls `IcalService.getTaskBuckets()` and annotates each task — `IcalService` does not gain explanation responsibility
 4. Extend `SyncPreviewService.build()` to merge filter and classification decisions
 5. Add collapsible decision table to `StatusCard.ts`
 6. Add table CSS to `styles.css`
@@ -282,13 +288,13 @@ Calendar Preview & Explain should follow in a subsequent minor release (v2.2.1 o
 
 ```typescript
 // Phase A
-googleCalendarMode: boolean;  // default: false
+datedTasksAsAllDayEvents: boolean;  // default: false
 ```
 
 ### New interfaces (Phase B)
 
 ```typescript
-// In SyncPreviewService.ts or new Application/TaskDecision.ts
+// In new Application/TaskDecisionService.ts or SyncPreviewService.ts
 interface TaskDecision {
     summary: string;
     fileUri: string;
@@ -306,9 +312,9 @@ interface TaskFilterDecision {
 }
 ```
 
-### Existing interfaces — no changes needed
+### Existing interfaces — changes noted
 
-- `CalendarProjection` — unchanged, still provides aggregate counts
-- `SyncPreview` — unchanged, still provides aggregate preview
+- `CalendarProjection` — `eventCount` and `todoCount` must reflect promoted tasks when `datedTasksAsAllDayEvents=true` (consistency requirement)
+- `SyncPreview` — unchanged structurally, but its counts flow from `CalendarProjection` so they inherit the consistency fix
 - `Task` — unchanged, all needed fields already exist
 - `ReasonCount` — unchanged, still used for aggregate histograms
