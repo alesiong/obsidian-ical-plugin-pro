@@ -113,6 +113,13 @@ A: Google Calendar natively only supports `VEVENT`. For full `VTODO` support, we
 **Q: Is it safe to use GitHub Gist?**
 A: Yes. Your Gist is yours. We recommend using a private Gist for maximum privacy. Your Personal Access Token never leaves your machine except to communicate with GitHub.
 
+## Compatibility & Troubleshooting
+
+- **Google Calendar does not support `VTODO`.** Tasks without a time are exported as `VTODO` and will not appear in Google Calendar. To see tasks in Google Calendar, add a time (e.g. `13:00`) so they become `VEVENT`.
+- **Calendar clients may refresh subscribed ICS feeds slowly.** Most clients cache subscriptions and only refresh periodically (often every 1–24 hours). After syncing, you may need to manually refresh or wait for the next polling cycle.
+- **Local file export requires a calendar client that can read local ICS files.** Not all clients support subscribing to local files. Apple Calendar and Thunderbird work well; some clients may require the file to be served over HTTP.
+- **Mobile support varies by client and storage workflow.** If you use local file export, the `.ics` file lives in your Obsidian vault. Mobile calendar apps may not have direct access to vault storage. GitHub Gist sync is recommended for cross-device use.
+
 ## Development
 
 - `npm run build`

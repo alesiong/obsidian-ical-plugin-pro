@@ -15,7 +15,7 @@ data.json
 .gemini/
 
 # Documentation & Design (local only)
-TASKS.md
+Tasks.md
 DESIGN.md
 
 # Scripts & Tooling (local only)

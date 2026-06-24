@@ -18,7 +18,7 @@
 			"node",
 			"obsidian"
 		],
-		"strict": false
+		"strict": true
 	},
 	"include": [
 		"tests/**/*.ts",

@@ -1,17 +1,12 @@
-name: Build and Release
+name: Release
 
 on:
   push:
-    branches:
-      - main
     tags:
-      - "*"
-  pull_request:
-    branches:
-      - main
+      - "*.*.*"
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -34,6 +29,9 @@ jobs:
       - name: Validate plugin
         run: npm run validate
 
+      - name: Build production assets
+        run: npm run build
+
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
@@ -43,10 +41,10 @@ jobs:
             manifest.json
             styles.css
 
-      - name: Release Assets
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Create draft release
         uses: softprops/action-gh-release@v3
         with:
+          draft: true
           files: |
             main.js
             manifest.json
@@ -55,7 +53,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Attest release assets
-        if: startsWith(github.ref, 'refs/tags/')
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
