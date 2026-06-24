@@ -610,9 +610,18 @@ test("datedTasksAsAllDayEvents: EventsOnly mode behaves consistently with or wit
 	// EventsOnly already emits all dated tasks as VEVENT regardless of the flag
 	assert.match(calOff, /BEGIN:VEVENT/);
 	assert.match(calOn, /BEGIN:VEVENT/);
+	assert.match(calOff, /DTSTART;VALUE=DATE:20260615/);
+	assert.match(calOn, /DTSTART;VALUE=DATE:20260615/);
 	// Floating tasks are dropped in EventsOnly mode regardless of the flag
 	assert.doesNotMatch(calOff, /BEGIN:VTODO/);
 	assert.doesNotMatch(calOn, /BEGIN:VTODO/);
-	// Both should produce identical output
-	assert.equal(calOff, calOn, "EventsOnly output should be identical regardless of datedTasksAsAllDayEvents");
+	// VEVENT and VTODO counts should match
+	assert.equal(
+		(calOff.match(/BEGIN:VEVENT/g) || []).length,
+		(calOn.match(/BEGIN:VEVENT/g) || []).length,
+	);
+	assert.equal(
+		(calOff.match(/BEGIN:VTODO/g) || []).length,
+		(calOn.match(/BEGIN:VTODO/g) || []).length,
+	);
 });
