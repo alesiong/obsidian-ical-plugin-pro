@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.2.1] - 2026-08-19
+- Fixed date fragments like `2026-08-19` being parsed as a bare-hour time range.
+- Added scheduled-date-first multiple date handling as the new default.
+
 ## [2.1.6] - 2026-05-26
 - Re-released the review-safe manifest metadata after the 2.1.5 tag pointed at a commit missing the required `version` field.
 - Synced `package.json`, `package-lock.json`, `manifest.json`, and `versions.json` to the release version.

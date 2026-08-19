@@ -73,6 +73,9 @@ export class IcalService {
 				case "PreferStartDate":
 					this.processSingleEvent(task, task.hasA("Start") ? "Start" : "Due", prependSummary, settings, builder, timezone);
 					break;
+				case "PreferScheduledDate":
+					this.processSingleEvent(task, task.hasA("Scheduled") ? "Scheduled" : task.hasA("Due") ? "Due" : "Start", prependSummary, settings, builder, timezone);
+					break;
 				case "CreateMultipleEvents":
 					if (task.hasA("Start")) this.processSingleEvent(task, "Start", "🛫 ", settings, builder, timezone);
 					if (task.hasA("Scheduled")) this.processSingleEvent(task, "Scheduled", "⏳ ", settings, builder, timezone);

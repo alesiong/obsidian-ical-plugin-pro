@@ -445,6 +445,39 @@ test("multiple dates: PreferStartDate uses Start", () => {
 	assert.match(cal, /DTSTART;TZID=[^:]+:20260601T\d{6}/);
 });
 
+test("multiple dates: PreferScheduledDate uses Scheduled", () => {
+	const task = makeTask("- [ ] 09:00 Task ⏳ 2026-06-10 🛫 2026-06-01 📅 2026-06-15");
+	assert.ok(task);
+	const cal = ical([task], {
+		...DEFAULT_SETTINGS,
+		includeEventsOrTodos: "EventsOnly",
+		howToProcessMultipleDates: "PreferScheduledDate",
+	});
+	// The Scheduled date is used as the primary DTSTART
+	assert.match(cal, /DTSTART;TZID=[^:]+:20260610T\d{6}/);
+});
+
+test("multiple dates: default uses Scheduled", () => {
+	const task = makeTask("- [ ] 09:00 Task ⏳ 2026-06-10 🛫 2026-06-01 📅 2026-06-15");
+	assert.ok(task);
+	const cal = ical([task], {
+		...DEFAULT_SETTINGS,
+		includeEventsOrTodos: "EventsOnly",
+	});
+	// The default multiple-date handling prefers the Scheduled date
+	assert.match(cal, /DTSTART;TZID=[^:]+:20260610T\d{6}/);
+});
+
+test("multiple dates: default exports scheduled-only task", () => {
+	const task = makeTask("- [ ] 09:00 Task ⏳ 2026-06-10");
+	assert.ok(task);
+	const cal = ical([task], {
+		...DEFAULT_SETTINGS,
+		includeEventsOrTodos: "EventsOnly",
+	});
+	assert.match(cal, /DTSTART;TZID=[^:]+:20260610T\d{6}/);
+});
+
 test("multiple dates: CreateMultipleEvents creates one VEVENT per date", () => {
 	const task = makeTask("- [ ] 09:00 Task 🛫 2026-06-01 📅 2026-06-15");
 	assert.ok(task);

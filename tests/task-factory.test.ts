@@ -134,6 +134,24 @@ test("time range: single-digit hours", () => {
 	assert.equal(task.getDurationMinutes(), 60);
 });
 
+test("date is not parsed as a bare-hour time range", () => {
+	const task = makeTask("- [ ] Event 🔁 every day ⏳ 2026-08-19");
+	assert.ok(task);
+	assert.equal(task.getRecurrenceRule(), "FREQ=DAILY");
+	assert.equal(task.hasA("Scheduled"), true);
+	assert.equal(task.hasTimedDate(), false);
+	assert.equal(task.getDurationMinutes(), null);
+	assert.equal(task.getDate("Scheduled", "YYYYMMDD"), "20260819");
+});
+
+test("date before explicit time range still parses the time range", () => {
+	const task = makeTask("- [ ] 2026-08-19 09:00-10:00 Meeting");
+	assert.ok(task);
+	assert.equal(task.hasTimedDate(), true);
+	assert.equal(task.getDurationMinutes(), 60);
+	assert.equal(task.getDate("Due", "YYYYMMDD[T]HHmmss"), "20260819T090000");
+});
+
 // ─── Recurrence ───────────────────────────────────────────────────────────────
 
 test("recurrence: every day", () => {

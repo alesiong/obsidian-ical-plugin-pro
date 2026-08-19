@@ -266,10 +266,10 @@ function collectCategories(value: string): string[] {
 }
 
 function parseTimeToken(summary: string): ParsedTime | null {
-	const timeRangeMatch = summary.match(/\b(\d{1,2})(?::(\d{2}))?\s*([ap]m)?\s*-\s*(\d{1,2})(?::(\d{2}))?\s*([ap]m)?\b/i);
+	const timeRangeMatch = summary.match(/\b(\d{1,2})(?::(\d{2})\s*([ap]m)?|\s*([ap]m))\s*-\s*(\d{1,2})(?::(\d{2}))?\s*([ap]m)?\b/i);
 	if (timeRangeMatch) {
-		const start = normalizeTimeParts(timeRangeMatch[1], timeRangeMatch[2], timeRangeMatch[3]);
-		const end = normalizeTimeParts(timeRangeMatch[4], timeRangeMatch[5], timeRangeMatch[6]);
+		const start = normalizeTimeParts(timeRangeMatch[1], timeRangeMatch[2], timeRangeMatch[3] || timeRangeMatch[4]);
+		const end = normalizeTimeParts(timeRangeMatch[5], timeRangeMatch[6], timeRangeMatch[7]);
 		if (!start || !end) return null;
 
 		return {

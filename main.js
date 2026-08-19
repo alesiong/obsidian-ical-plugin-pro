@@ -282,7 +282,8 @@ var INCLUDE_EVENTS_OR_TODOS = {
   TodosOnly: "Todo items only"
 };
 var HOW_TO_PROCESS_MULTIPLE_DATES = {
-  PreferDueDate: "Prefer due date (default)",
+  PreferScheduledDate: "Prefer scheduled date (default)",
+  PreferDueDate: "Prefer due date",
   PreferStartDate: "Prefer start date",
   CreateMultipleEvents: "Create an event per start/scheduled/due date"
 };
@@ -308,7 +309,7 @@ var DEFAULT_SETTINGS = {
   isOnlyTasksWithoutDatesAreTodos: true,
   ignoreOldTasks: false,
   oldTaskInDays: 365,
-  howToProcessMultipleDates: "PreferDueDate",
+  howToProcessMultipleDates: "PreferScheduledDate",
   isDayPlannerPluginFormatEnabled: false,
   respectGlobalTaskFilter: false,
   globalTaskFilterTags: "#task",
@@ -906,7 +907,7 @@ var GistClient = class {
 };
 
 // src/version.ts
-var PLUGIN_VERSION = "2.2.0";
+var PLUGIN_VERSION = "2.2.1";
 
 // src/Service/ICalBuilder.ts
 var ICalBuilder = class {
@@ -1048,6 +1049,9 @@ var IcalService = class {
       switch (settings.howToProcessMultipleDates) {
         case "PreferStartDate":
           this.processSingleEvent(task, task.hasA("Start") ? "Start" : "Due", prependSummary, settings, builder, timezone);
+          break;
+        case "PreferScheduledDate":
+          this.processSingleEvent(task, task.hasA("Scheduled") ? "Scheduled" : task.hasA("Due") ? "Due" : "Start", prependSummary, settings, builder, timezone);
           break;
         case "CreateMultipleEvents":
           if (task.hasA("Start")) this.processSingleEvent(task, "Start", "\u{1F6EB} ", settings, builder, timezone);
@@ -1587,10 +1591,10 @@ function collectCategories(value) {
   return [...categories];
 }
 function parseTimeToken(summary) {
-  const timeRangeMatch = summary.match(/\b(\d{1,2})(?::(\d{2}))?\s*([ap]m)?\s*-\s*(\d{1,2})(?::(\d{2}))?\s*([ap]m)?\b/i);
+  const timeRangeMatch = summary.match(/\b(\d{1,2})(?::(\d{2})\s*([ap]m)?|\s*([ap]m))\s*-\s*(\d{1,2})(?::(\d{2}))?\s*([ap]m)?\b/i);
   if (timeRangeMatch) {
-    const start = normalizeTimeParts(timeRangeMatch[1], timeRangeMatch[2], timeRangeMatch[3]);
-    const end = normalizeTimeParts(timeRangeMatch[4], timeRangeMatch[5], timeRangeMatch[6]);
+    const start = normalizeTimeParts(timeRangeMatch[1], timeRangeMatch[2], timeRangeMatch[3] || timeRangeMatch[4]);
+    const end = normalizeTimeParts(timeRangeMatch[5], timeRangeMatch[6], timeRangeMatch[7]);
     if (!start || !end) return null;
     return {
       hours: start.hours,

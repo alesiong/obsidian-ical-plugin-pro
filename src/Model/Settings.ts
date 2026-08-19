@@ -1,6 +1,6 @@
 export type InternalLinkMode = "DoNotModifyThem" | "KeepTitle" | "PreferTitle" | "RemoveThem";
 export type CalendarEntryMode = "EventsOnly" | "EventsAndTodos" | "TodosOnly";
-export type MultipleDateMode = "PreferDueDate" | "PreferStartDate" | "CreateMultipleEvents";
+export type MultipleDateMode = "PreferDueDate" | "PreferStartDate" | "PreferScheduledDate" | "CreateMultipleEvents";
 export type LinkPlacement = "Description" | "Location" | "Both";
 
 export interface TaskSourceRule {
@@ -60,7 +60,8 @@ export const INCLUDE_EVENTS_OR_TODOS = {
 };
 
 export const HOW_TO_PROCESS_MULTIPLE_DATES = {
-	PreferDueDate: "Prefer due date (default)",
+	PreferScheduledDate: "Prefer scheduled date (default)",
+	PreferDueDate: "Prefer due date",
 	PreferStartDate: "Prefer start date",
 	CreateMultipleEvents: "Create an event per start/scheduled/due date",
 };
@@ -88,7 +89,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	isOnlyTasksWithoutDatesAreTodos: true,
 	ignoreOldTasks: false,
 	oldTaskInDays: 365,
-	howToProcessMultipleDates: "PreferDueDate",
+	howToProcessMultipleDates: "PreferScheduledDate",
 	isDayPlannerPluginFormatEnabled: false,
 	respectGlobalTaskFilter: false,
 	globalTaskFilterTags: "#task",
